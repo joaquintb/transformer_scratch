@@ -5,7 +5,7 @@ from config import get_config, get_weights_file_path, latest_weights_file_path
 import torchtext.datasets as datasets
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, random_split, Subset
 from torch.optim.lr_scheduler import LambdaLR
 
 import warnings
@@ -196,6 +196,26 @@ def train_model(config):
     Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
+    
+    # --------------------------------------------------------------------------------------------
+    # Temporal --> shrinking training dataset
+    # Step 1: Get the original dataset from the DataLoader
+    # This assumes the dataloader is created from a dataset object
+    original_dataset = train_dataloader.dataset
+
+    # Step 2: Calculate the size of the subset (5% of the original dataset)
+    subset_size = int(len(original_dataset) * 0.05)
+
+    # Step 3: Create a subset of the dataset
+    indices = torch.randperm(len(original_dataset))[:subset_size]  # Randomly select indices
+    subset_dataset = Subset(original_dataset, indices)
+
+    # Create a new DataLoader for the subset
+    train_dataloader = torch.utils.data.DataLoader(subset_dataset, 
+                                                            batch_size=train_dataloader.batch_size, 
+                                                            shuffle=True)
+    # --------------------------------------------------------------------------------------------
+
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
     writer = SummaryWriter(config['experiment_name'])
@@ -256,7 +276,7 @@ def train_model(config):
             global_step += 1
 
         # Run validation at the end of every epoch
-        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+        # run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
 
         # Save the model at the end of every epoch
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
