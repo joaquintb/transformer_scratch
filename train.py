@@ -142,8 +142,8 @@ def get_ds(config):
     # It only has the train split, so we divide it overselves
     ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
-    # Take a 33% sample of the full dataset
-    subset_size = int(0.33 * len(ds_raw))
+    # Take a sample of the full dataset
+    subset_size = int(0.5 * len(ds_raw))
     ds_raw = ds_raw.select(range(subset_size))
 
     # Build tokenizers
@@ -170,7 +170,7 @@ def get_ds(config):
 
     print(f'Max length of source sentence: {max_len_src}')
     print(f'Max length of target sentence: {max_len_tgt}')
-    
+    exit(-1)    
 
     train_dataloader = DataLoader(train_ds, batch_size=config['batch_size'], shuffle=True)
     val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True)
