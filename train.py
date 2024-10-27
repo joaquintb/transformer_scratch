@@ -177,7 +177,7 @@ def get_ds(config):
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
 
 def get_model(config, vocab_src_len, vocab_tgt_len):
-    model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'])
+    model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'], N=config['num_blocks'], h=config['num_heads'], d_ff=config['d_ff'])
     return model
 
 def train_model(config):
@@ -274,4 +274,10 @@ def train_model(config):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    train_model(config)
+    # Testing impact of number of heads in performance
+    for num_heads in [1,4,8,12]:
+        config['num_heads'] = num_heads
+        # (heads-d_model-N)
+        config['model_basename'] = f"t_model_{num_heads}h_{config['d_model']}d_{config['num_blocks']}N"
+        print(config['model_basename'])
+        # train_model(config)
