@@ -3,9 +3,9 @@ from pathlib import Path
 def get_config():
     return {
         "batch_size": 8,
-        "num_epochs": 3,
+        "num_epochs": 20,
         "lr": 10**-4,
-        "seq_len": 330,
+        "seq_len": 350,
         "d_model": 512,
         "num_blocks": 6,
         "num_heads": 8,
@@ -13,7 +13,7 @@ def get_config():
         "datasource": 'opus_books',
         "lang_src": "es",
         "lang_tgt": "fr",
-        "model_folder": "weights",
+        "model_folder": "trained_models",
         "model_basename": "tmodel_",
         "preload": "latest",
         "tokenizer_file": "tokenizer_{0}.json",
@@ -22,7 +22,7 @@ def get_config():
 
 def get_weights_file_path(config, epoch: str):
     model_folder = f"{config['datasource']}_{config['model_folder']}"
-    model_filename = f"{config['model_basename']}{epoch}.pt"
+    model_filename = f"{config['model_basename']}_epoch{epoch}.pt"
     return str(Path('.') / model_folder / model_filename)
 
 # Find the latest weights file in the weights folder

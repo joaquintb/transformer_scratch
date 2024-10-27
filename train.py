@@ -143,7 +143,7 @@ def get_ds(config):
     ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
     # Take a sample of the full dataset
-    subset_size = int(0.05 * len(ds_raw))
+    subset_size = int(0.5 * len(ds_raw))
     ds_raw = ds_raw.select(range(subset_size))
 
     # Build tokenizers
@@ -201,7 +201,11 @@ def train_model(config):
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
-    writer = SummaryWriter(config['experiment_name'])
+    num_heads = config['num_heads']
+    d_model = config['d_model']
+    num_blocks = config['num_blocks']
+    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N"
+    writer = SummaryWriter(experiment_name)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
 
@@ -221,6 +225,8 @@ def train_model(config):
         print('No model to preload, starting from scratch')
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1).to(device)
+    # Initialize a variable to keep track of the previous checkpoint file
+    prev_model_filename = None
 
     for epoch in range(initial_epoch, config['num_epochs']):
         torch.cuda.empty_cache()
@@ -261,6 +267,10 @@ def train_model(config):
         # Run validation at the end of every epoch
         run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
 
+        # Remove the previous model checkpoint if it exists
+        if prev_model_filename is not None and os.path.exists(prev_model_filename):
+            os.remove(prev_model_filename)
+
         # Save the model at the end of every epoch
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
         torch.save({
@@ -270,14 +280,20 @@ def train_model(config):
             'global_step': global_step
         }, model_filename)
 
+        # Update prev_model_filename to the current model file
+        prev_model_filename = model_filename
+
+def hyperparam_test(hyperparam: str, hyperparam_list):
+    config = get_config()
+    for value in hyperparam_list:
+        config[hyperparam] = value
+        config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
+        print(config['model_basename'])
+        train_model(config)
 
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
-    config = get_config()
-    # Testing impact of number of heads in performance
-    for num_heads in [1,4,8,12]:
-        config['num_heads'] = num_heads
-        # (heads-d_model-N)
-        config['model_basename'] = f"t_model_{num_heads}h_{config['d_model']}d_{config['num_blocks']}N"
-        print(config['model_basename'])
-        # train_model(config)
+    # Testing impact of hyperparameters in performance
+    hyperparam_test('num_heads', [1, 4, 8, 16])
+    hyperparam_test('num_blocks', [2, 4, 6, 8]) 
+    hyperparam_test('d_model', [256, 512, 1024])
