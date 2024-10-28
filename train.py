@@ -23,6 +23,63 @@ from tokenizers.pre_tokenizers import Whitespace
 import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
 
+def beam_search_decode(model, beam_size, source, source_mask, tokenizer_src, tokenizer_tgt, max_len, device):
+    sos_idx = tokenizer_tgt.token_to_id('[SOS]')
+    eos_idx = tokenizer_tgt.token_to_id('[EOS]')
+
+    # Precompute the encoder output and reuse it for every step
+    encoder_output = model.encode(source, source_mask)
+    # Initialize the decoder input with the sos token
+    decoder_initial_input = torch.empty(1, 1).fill_(sos_idx).type_as(source).to(device)
+
+    # Create a candidate list
+    candidates = [(decoder_initial_input, 1)]
+
+    while True:
+
+        # If a candidate has reached the maximum length, it means we have run the decoding for at least max_len iterations, so stop the search
+        if any([cand.size(1) == max_len for cand, _ in candidates]):
+            break
+
+        # Create a new list of candidates
+        new_candidates = []
+
+        for candidate, score in candidates:
+
+            # Do not expand candidates that have reached the eos token
+            if candidate[0][-1].item() == eos_idx:
+                continue
+
+            # Build the candidate's mask
+            candidate_mask = causal_mask(candidate.size(1)).type_as(source_mask).to(device)
+            # calculate output
+            out = model.decode(encoder_output, source_mask, candidate, candidate_mask)
+            # get next token probabilities
+            prob = model.project(out[:, -1])
+            # get the top k candidates
+            topk_prob, topk_idx = torch.topk(prob, beam_size, dim=1)
+            for i in range(beam_size):
+                # for each of the top k candidates, get the token and its probability
+                token = topk_idx[0][i].unsqueeze(0).unsqueeze(0)
+                token_prob = topk_prob[0][i].item()
+                # create a new candidate by appending the token to the current candidate
+                new_candidate = torch.cat([candidate, token], dim=1)
+                # We sum the log probabilities because the probabilities are in log space
+                new_candidates.append((new_candidate, score + token_prob))
+
+        # Sort the new candidates by their score
+        candidates = sorted(new_candidates, key=lambda x: x[1], reverse=True)
+        # Keep only the top k candidates
+        candidates = candidates[:beam_size]
+
+        # If all the candidates have reached the eos token, stop
+        if all([cand[0][-1].item() == eos_idx for cand, _ in candidates]):
+            break
+
+    # Return the best candidate
+    return candidates[0][0].squeeze()
+
+
 def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_len, device):
     sos_idx = tokenizer_tgt.token_to_id('[SOS]')
     eos_idx = tokenizer_tgt.token_to_id('[EOS]')
@@ -80,8 +137,9 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             # check that the batch size is 1
             assert encoder_input.size(
                 0) == 1, "Batch size must be 1 for validation"
-
+    
             model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
+            # model_out = beam_search_decode(model, 3, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
 
             source_text = batch["src_text"][0]
             target_text = batch["tgt_text"][0]
@@ -142,9 +200,9 @@ def get_ds(config):
     # It only has the train split, so we divide it overselves
     ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
-    # Take a sample of the full dataset
-    subset_size = int(0.5 * len(ds_raw))
-    ds_raw = ds_raw.select(range(subset_size))
+    # # Take a sample of the full dataset
+    # subset_size = int(0.5 * len(ds_raw))
+    # ds_raw = ds_raw.select(range(subset_size))
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
@@ -296,4 +354,4 @@ if __name__ == '__main__':
     # Testing impact of hyperparameters in performance
     hyperparam_test('num_heads', [1, 4, 8, 16])
     hyperparam_test('num_blocks', [2, 4, 6, 8]) 
-    hyperparam_test('d_model', [256, 512, 1024])
+    hyperparam_test('d_model', [128, 256, 512, 1024])
