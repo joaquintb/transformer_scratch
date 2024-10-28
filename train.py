@@ -20,7 +20,8 @@ from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
-import torchmetrics
+from torchmetrics.text import CharErrorRate, WordErrorRate, BLEUScore
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from torch.utils.tensorboard import SummaryWriter
 
 def beam_search_decode(model, beam_size, source, source_mask, tokenizer_src, tokenizer_tgt, max_len, device):
@@ -110,8 +111,26 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
 
     return decoder_input.squeeze(0)
 
+def manual_bleu_aggregation(expected, predicted):
+    total_score = 0
+    smoothing_function = SmoothingFunction().method1
+    
+    # Calculate BLEU score for each sentence
+    for target_sentence, translation_sentence in zip(expected, predicted):
+        # Split sentences into words for BLEU score calculation
+        target = [target_sentence.split()]  # Wrap in a list for multiple references
+        translation = translation_sentence.split()
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=2):
+        score = sentence_bleu(target, translation, weights=(1, 0, 0, 0), 
+                              smoothing_function=smoothing_function)
+        total_score += score
+    
+    # Average score for the batch
+    average_score = total_score / len(predicted)
+    return average_score
+
+
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=3):
     model.eval()
     count = 0
 
@@ -160,24 +179,25 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
                 break
     
     if writer:
-        # Evaluate the character error rate
         # Compute the char error rate 
-        metric = torchmetrics.CharErrorRate()
+        metric = CharErrorRate()
         cer = metric(predicted, expected)
         writer.add_scalar('validation cer', cer, global_step)
         writer.flush()
 
         # Compute the word error rate
-        metric = torchmetrics.WordErrorRate()
+        metric = WordErrorRate()
         wer = metric(predicted, expected)
         writer.add_scalar('validation wer', wer, global_step)
         writer.flush()
 
         # Compute the BLEU metric
-        metric = torchmetrics.BLEUScore()
-        bleu = metric(predicted, expected)
-        writer.add_scalar('validation BLEU', bleu, global_step)
+        # Calculate and print the manual aggregate BLEU score
+        bleu_batch_score = manual_bleu_aggregation(expected, predicted)
+        writer.add_scalar('validation BLEU', bleu_batch_score, global_step)
         writer.flush()
+
+        # print(f"Manual Aggregate 1-gram BLEU Score: {bleu_batch_score}")
 
 def get_all_sentences(ds, lang):
     for item in ds:
@@ -346,7 +366,7 @@ def hyperparam_test(hyperparam: str, hyperparam_list):
     for value in hyperparam_list:
         config[hyperparam] = value
         config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
-        print(config['model_basename'])
+        print(f"~~~~~~~~~~{config['model_basename']}~~~~~~~~~~")
         train_model(config)
 
 if __name__ == '__main__':

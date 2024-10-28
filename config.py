@@ -8,7 +8,7 @@ def get_config():
         "seq_len": 350,
         "d_model": 512,
         "num_blocks": 6,
-        "num_heads": 8,
+        "num_heads":8,
         "d_ff": 2048,
         "datasource": 'opus_books',
         "lang_src": "en",
