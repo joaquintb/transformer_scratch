@@ -372,6 +372,8 @@ def hyperparam_test(hyperparam: str, hyperparam_list):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     # Testing impact of hyperparameters in performance
-    hyperparam_test('num_heads', [1, 4, 8, 16])
-    hyperparam_test('num_blocks', [2, 4, 6, 8]) 
-    hyperparam_test('d_model', [128, 256, 512, 1024])
+    # hyperparam_test('num_heads', [1, 4, 8, 16])
+    # hyperparam_test('num_blocks', [2, 4, 6, 8]) 
+    # hyperparam_test('d_model', [128, 256, 512, 1024])
+    config = get_config()
+    train_model(config)
