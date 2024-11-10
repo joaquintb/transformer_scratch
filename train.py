@@ -126,7 +126,7 @@ def manual_bleu_aggregation(expected, predicted):
     return average_score
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=3):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=3):
     model.eval()
     count = 0
 
@@ -144,6 +144,8 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         console_width = 80
 
     with torch.no_grad():
+        print(f'EPOCH {epoch}')
+        print_msg('*'*console_width)
         for batch in validation_ds:
             count += 1
             encoder_input = batch["encoder_input"].to(device) # (b, seq_len)
@@ -160,6 +162,13 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             target_text = batch["tgt_text"][0]
             model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
 
+            # Post-process to remove space before period
+            if model_out_text.endswith(" ."):
+                model_out_text = model_out_text[:-2] + "."
+
+            # Move commas to the previous word (if there is a space before the comma)
+            model_out_text = model_out_text.replace(" ,", ",")
+
             source_texts.append(source_text)
             expected.append(target_text)
             predicted.append(model_out_text)
@@ -171,7 +180,6 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             print_msg(f"{f'PREDICTED: ':>12}{model_out_text}")
 
             if count == num_examples:
-                print_msg('-'*console_width)
                 break
     
     if writer:
@@ -193,7 +201,9 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         writer.add_scalar('validation BLEU', bleu_batch_score, global_step)
         writer.flush()
 
-        # print(f"Manual Aggregate 1-gram BLEU Score: {bleu_batch_score}")
+        print(f"Manual Aggregate 1-gram BLEU Score: {bleu_batch_score}")
+        print_msg('*'*console_width)
+        print('\n\n')
 
 # --------------------------------------------------------------------------------------------------------------------------------
 def get_all_sentences(ds, lang):
@@ -238,7 +248,6 @@ def get_ds(config, get_seq_len: bool):
 
         print(f'Max length of source sentence: {max_len_src}')
         print(f'Max length of target sentence: {max_len_tgt}')
-        exit(0)
 
     train_dataloader = DataLoader(train_ds, batch_size=config['batch_size'], shuffle=True)
     val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True)
@@ -254,21 +263,21 @@ def train_model(config):
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
     print("Using device:", device)
-    if (device == 'cuda'):
-        print(f"Device name: {torch.cuda.get_device_name(device.index)}")
-        print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
-    elif (device == 'mps'):
-        print(f"Device name: <mps>")
-    else:
-        print("NOTE: If you have a GPU, consider using it for training.")
-        print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")
-        print("      On a Mac machine, run: pip3 install --pre torch torchvision torchaudio torchtext --index-url https://download.pytorch.org/whl/nightly/cpu")
+    # if (device == 'cuda'):
+    #     print(f"Device name: {torch.cuda.get_device_name(device.index)}")
+    #     print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
+    # elif (device == 'mps'):
+    #     print(f"Device name: <mps>")
+    # else:
+    #     print("NOTE: If you have a GPU, consider using it for training.")
+    #     print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")
+    #     print("      On a Mac machine, run: pip3 install --pre torch torchvision torchaudio torchtext --index-url https://download.pytorch.org/whl/nightly/cpu")
     device = torch.device(device)
 
     # Make sure the weights folder exists
-    Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
+    Path(f"{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
-    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config, get_seq_len=True)
+    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config, get_seq_len=False)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
     num_heads = config['num_heads']
@@ -335,7 +344,7 @@ def train_model(config):
             global_step += 1
 
         # Run validation at the end of every epoch
-        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer)
 
         # Remove the previous model checkpoint if it exists
         if prev_model_filename is not None and os.path.exists(prev_model_filename):
