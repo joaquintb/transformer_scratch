@@ -20,8 +20,66 @@ from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
-import torchmetrics
+from torchmetrics.text import CharErrorRate, WordErrorRate, BLEUScore
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from torch.utils.tensorboard import SummaryWriter
+
+def beam_search_decode(model, beam_size, source, source_mask, tokenizer_src, tokenizer_tgt, max_len, device):
+    sos_idx = tokenizer_tgt.token_to_id('[SOS]')
+    eos_idx = tokenizer_tgt.token_to_id('[EOS]')
+
+    # Precompute the encoder output and reuse it for every step
+    encoder_output = model.encode(source, source_mask)
+    # Initialize the decoder input with the sos token
+    decoder_initial_input = torch.empty(1, 1).fill_(sos_idx).type_as(source).to(device)
+
+    # Create a candidate list
+    candidates = [(decoder_initial_input, 1)]
+
+    while True:
+
+        # If a candidate has reached the maximum length, it means we have run the decoding for at least max_len iterations, so stop the search
+        if any([cand.size(1) == max_len for cand, _ in candidates]):
+            break
+
+        # Create a new list of candidates
+        new_candidates = []
+
+        for candidate, score in candidates:
+
+            # Do not expand candidates that have reached the eos token
+            if candidate[0][-1].item() == eos_idx:
+                continue
+
+            # Build the candidate's mask
+            candidate_mask = causal_mask(candidate.size(1)).type_as(source_mask).to(device)
+            # calculate output
+            out = model.decode(encoder_output, source_mask, candidate, candidate_mask)
+            # get next token probabilities
+            prob = model.project(out[:, -1])
+            # get the top k candidates
+            topk_prob, topk_idx = torch.topk(prob, beam_size, dim=1)
+            for i in range(beam_size):
+                # for each of the top k candidates, get the token and its probability
+                token = topk_idx[0][i].unsqueeze(0).unsqueeze(0)
+                token_prob = topk_prob[0][i].item()
+                # create a new candidate by appending the token to the current candidate
+                new_candidate = torch.cat([candidate, token], dim=1)
+                # We sum the log probabilities because the probabilities are in log space
+                new_candidates.append((new_candidate, score + token_prob))
+
+        # Sort the new candidates by their score
+        candidates = sorted(new_candidates, key=lambda x: x[1], reverse=True)
+        # Keep only the top k candidates
+        candidates = candidates[:beam_size]
+
+        # If all the candidates have reached the eos token, stop
+        if all([cand[0][-1].item() == eos_idx for cand, _ in candidates]):
+            break
+
+    # Return the best candidate
+    return candidates[0][0].squeeze()
+
 
 def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_len, device):
     sos_idx = tokenizer_tgt.token_to_id('[SOS]')
@@ -53,8 +111,26 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
 
     return decoder_input.squeeze(0)
 
+def manual_bleu_aggregation(expected, predicted):
+    total_score = 0
+    smoothing_function = SmoothingFunction().method1
+    
+    # Calculate BLEU score for each sentence
+    for target_sentence, translation_sentence in zip(expected, predicted):
+        # Split sentences into words for BLEU score calculation
+        target = [target_sentence.split()]  # Wrap in a list for multiple references
+        translation = translation_sentence.split()
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=2):
+        score = sentence_bleu(target, translation, weights=(0.6, 0.3, 0.1, 0), 
+                              smoothing_function=smoothing_function)
+        total_score += score
+    
+    # Average score for the batch
+    average_score = total_score / len(predicted)
+    return average_score
+
+
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=3):
     model.eval()
     count = 0
 
@@ -80,8 +156,9 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             # check that the batch size is 1
             assert encoder_input.size(
                 0) == 1, "Batch size must be 1 for validation"
-
+    
             model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
+            # model_out = beam_search_decode(model, 3, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
 
             source_text = batch["src_text"][0]
             target_text = batch["tgt_text"][0]
@@ -102,24 +179,25 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
                 break
     
     if writer:
-        # Evaluate the character error rate
         # Compute the char error rate 
-        metric = torchmetrics.CharErrorRate()
+        metric = CharErrorRate()
         cer = metric(predicted, expected)
         writer.add_scalar('validation cer', cer, global_step)
         writer.flush()
 
         # Compute the word error rate
-        metric = torchmetrics.WordErrorRate()
+        metric = WordErrorRate()
         wer = metric(predicted, expected)
         writer.add_scalar('validation wer', wer, global_step)
         writer.flush()
 
         # Compute the BLEU metric
-        metric = torchmetrics.BLEUScore()
-        bleu = metric(predicted, expected)
-        writer.add_scalar('validation BLEU', bleu, global_step)
+        # Calculate and print the manual aggregate BLEU score
+        bleu_batch_score = manual_bleu_aggregation(expected, predicted)
+        writer.add_scalar('validation BLEU', bleu_batch_score, global_step)
         writer.flush()
+
+        # print(f"Manual Aggregate 1-gram BLEU Score: {bleu_batch_score}")
 
 def get_all_sentences(ds, lang):
     for item in ds:
@@ -142,9 +220,9 @@ def get_ds(config):
     # It only has the train split, so we divide it overselves
     ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
-    # Take a sample of the full dataset
-    subset_size = int(0.5 * len(ds_raw))
-    ds_raw = ds_raw.select(range(subset_size))
+    # # Take a sample of the full dataset
+    # subset_size = int(0.5 * len(ds_raw))
+    # ds_raw = ds_raw.select(range(subset_size))
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
@@ -177,7 +255,7 @@ def get_ds(config):
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
 
 def get_model(config, vocab_src_len, vocab_tgt_len):
-    model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'])
+    model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'], N=config['num_blocks'], h=config['num_heads'], d_ff=config['d_ff'])
     return model
 
 def train_model(config):
@@ -201,7 +279,11 @@ def train_model(config):
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
-    writer = SummaryWriter(config['experiment_name'])
+    num_heads = config['num_heads']
+    d_model = config['d_model']
+    num_blocks = config['num_blocks']
+    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N"
+    writer = SummaryWriter(experiment_name)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
 
@@ -221,6 +303,8 @@ def train_model(config):
         print('No model to preload, starting from scratch')
 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1).to(device)
+    # Initialize a variable to keep track of the previous checkpoint file
+    prev_model_filename = None
 
     for epoch in range(initial_epoch, config['num_epochs']):
         torch.cuda.empty_cache()
@@ -261,6 +345,10 @@ def train_model(config):
         # Run validation at the end of every epoch
         run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
 
+        # Remove the previous model checkpoint if it exists
+        if prev_model_filename is not None and os.path.exists(prev_model_filename):
+            os.remove(prev_model_filename)
+
         # Save the model at the end of every epoch
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
         torch.save({
@@ -270,8 +358,22 @@ def train_model(config):
             'global_step': global_step
         }, model_filename)
 
+        # Update prev_model_filename to the current model file
+        prev_model_filename = model_filename
+
+def hyperparam_test(hyperparam: str, hyperparam_list):
+    config = get_config()
+    for value in hyperparam_list:
+        config[hyperparam] = value
+        config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
+        print(f"~~~~~~~~~~{config['model_basename']}~~~~~~~~~~")
+        train_model(config)
 
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
+    # Testing impact of hyperparameters in performance
+    # hyperparam_test('num_heads', [1, 4, 8, 16])
+    # hyperparam_test('num_blocks', [2, 4, 6, 8]) 
+    # hyperparam_test('d_model', [128, 256, 512, 1024])
     config = get_config()
     train_model(config)
