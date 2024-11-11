@@ -2,9 +2,9 @@ from pathlib import Path
 
 def get_config():
     return {
-        "batch_size": 6,
-        "num_epochs": 5,
-        "lr": 10**-4,
+        "batch_size": 16,
+        "num_epochs": 3,
+        "lr": 2e-4, # Doubled batch_size
         "seq_len": 50, 
         "d_model": 512,
         "num_blocks": 6,

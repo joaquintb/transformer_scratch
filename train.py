@@ -117,7 +117,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.6, 0.3, 0.1, 0), 
+        score = sentence_bleu(target, translation, weights=(0.4, 0.3, 0.2, 0.1), 
                               smoothing_function=smoothing_function)
         total_score += score
     
@@ -126,7 +126,7 @@ def manual_bleu_aggregation(expected, predicted):
     return average_score
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=3):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=8):
     model.eval()
     count = 0
 
@@ -144,7 +144,7 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         console_width = 80
 
     with torch.no_grad():
-        print(f'EPOCH {epoch}')
+        print(f'EPOCH {epoch} -- STEP {global_step}')
         print_msg('*'*console_width)
         for batch in validation_ds:
             count += 1
@@ -166,8 +166,8 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             if model_out_text.endswith(" ."):
                 model_out_text = model_out_text[:-2] + "."
 
-            # Move commas to the previous word (if there is a space before the comma)
-            model_out_text = model_out_text.replace(" ,", ",")
+            # # Move commas to the previous word (if there is a space before the comma)
+            # model_out_text = model_out_text.replace(" ,", ",")
 
             source_texts.append(source_text)
             expected.append(target_text)
@@ -201,7 +201,7 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         writer.add_scalar('validation BLEU', bleu_batch_score, global_step)
         writer.flush()
 
-        print(f"Manual Aggregate 1-gram BLEU Score: {bleu_batch_score}")
+        print(f"Manual Aggregate BLEU Score: {bleu_batch_score}")
         print_msg('*'*console_width)
         print('\n\n')
 
@@ -311,9 +311,9 @@ def train_model(config):
         torch.cuda.empty_cache()
         model.train()
         batch_iterator = tqdm(train_dataloader, desc=f"Processing Epoch {epoch:02d}")
+        
         for batch in batch_iterator:
-
-            encoder_input = batch['encoder_input'].to(device) # (b, seq_len)
+            encoder_input = batch['encoder_input'].to(device) # (B, seq_len)
             decoder_input = batch['decoder_input'].to(device) # (B, seq_len)
             encoder_mask = batch['encoder_mask'].to(device) # (B, 1, 1, seq_len)
             decoder_mask = batch['decoder_mask'].to(device) # (B, 1, seq_len, seq_len)
@@ -341,10 +341,22 @@ def train_model(config):
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
 
+            # Increment the global step counter
             global_step += 1
 
-        # Run validation at the end of every epoch
-        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer)
+            # Run validation every 500 iterations
+            if global_step % 500 == 0:
+                run_validation(
+                    model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
+                    device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
+                )
+
+        # Run validation at the end of each epoch as well
+        run_validation(
+            model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
+            device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
+        )
+
 
         # Remove the previous model checkpoint if it exists
         if prev_model_filename is not None and os.path.exists(prev_model_filename):
@@ -362,8 +374,7 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-def hyperparam_test(hyperparam: str, hyperparam_list):
-    config = get_config()
+def hyperparam_test(config, hyperparam: str, hyperparam_list):
     for value in hyperparam_list:
         config[hyperparam] = value
         config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
@@ -373,4 +384,6 @@ def hyperparam_test(hyperparam: str, hyperparam_list):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
+    # hyperparam_test(config, 'num_heads', [1,8])
     train_model(config)
+    
