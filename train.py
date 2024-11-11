@@ -126,7 +126,7 @@ def manual_bleu_aggregation(expected, predicted):
     return average_score
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=8):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=7):
     model.eval()
     count = 0
 
@@ -384,6 +384,6 @@ def hyperparam_test(config, hyperparam: str, hyperparam_list):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    # hyperparam_test(config, 'num_heads', [1,8])
-    train_model(config)
+    hyperparam_test(config, 'num_heads', [1,4,8,16])
+    # train_model(config)
     
