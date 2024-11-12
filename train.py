@@ -205,7 +205,6 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         print_msg('*'*console_width)
         print('\n\n')
 
-# --------------------------------------------------------------------------------------------------------------------------------
 def get_all_sentences(ds, lang):
     # Access each row's column by directly using the language code
     for item in ds:
@@ -223,8 +222,8 @@ def get_or_build_tokenizer(config, ds, lang):
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
     return tokenizer
 
-def get_ds(config, get_seq_len: bool):
-    # Load training and validation datasets directly from the source
+def get_train_ds(config, get_seq_len: bool):
+    # Load training, validation and test datasets directly from the source
     train_ds_raw = load_dataset(config['datasource'], split='train')
     val_ds_raw = load_dataset(config['datasource'], split='validation')
 
@@ -232,7 +231,7 @@ def get_ds(config, get_seq_len: bool):
     tokenizer_src = get_or_build_tokenizer(config, train_ds_raw, config['lang_src'])
     tokenizer_tgt = get_or_build_tokenizer(config, train_ds_raw, config['lang_tgt'])
 
-    # Create BilingualDataset instances for training and validation
+    # Create BilingualDataset instances for training, validation and test
     train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
 
@@ -253,7 +252,6 @@ def get_ds(config, get_seq_len: bool):
     val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True)
 
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
-# --------------------------------------------------------------------------------------------------------------------------------
 
 def get_model(config, vocab_src_len, vocab_tgt_len):
     model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'], N=config['num_blocks'], h=config['num_heads'], d_ff=config['d_ff'])
@@ -277,7 +275,7 @@ def train_model(config):
     # Make sure the weights folder exists
     Path(f"{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
-    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config, get_seq_len=False)
+    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_train_ds(config, get_seq_len=False)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
     num_heads = config['num_heads']
@@ -374,7 +372,7 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-def hyperparam_test(config, hyperparam: str, hyperparam_list):
+def hyperparam_train(config, hyperparam: str, hyperparam_list):
     for value in hyperparam_list:
         config[hyperparam] = value
         config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
@@ -384,6 +382,6 @@ def hyperparam_test(config, hyperparam: str, hyperparam_list):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    hyperparam_test(config, 'num_heads', [1,4,8,16])
-    # train_model(config)
+    num_heads_list = [1,2,4,6,8]
+    hyperparam_train(config, 'num_heads', num_heads_list)
     

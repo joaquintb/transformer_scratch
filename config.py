@@ -6,8 +6,8 @@ def get_config():
         "num_epochs": 5,
         "lr": 2e-4, # Doubled batch_size
         "seq_len": 50, 
-        "d_model": 512,
-        "num_blocks": 6,
+        "d_model": 128,
+        "num_blocks": 3,
         "num_heads":8,
         "d_ff": 2048,
         "datasource": "bentrevett/multi30k",

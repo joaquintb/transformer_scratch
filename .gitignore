@@ -4,4 +4,4 @@ __pycache__
 runs/
 weights/
 wandb/
-out.txt
+*.txt
