@@ -382,6 +382,5 @@ def hyperparam_train(config, hyperparam: str, hyperparam_list):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_heads_list = [1,2,4,6,8]
+    num_heads_list = [1,4,8]
     hyperparam_train(config, 'num_heads', num_heads_list)
-    

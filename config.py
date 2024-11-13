@@ -4,10 +4,10 @@ def get_config():
     return {
         "batch_size": 16,
         "num_epochs": 5,
-        "lr": 2e-4, # Doubled batch_size
+        "lr": 2e-4,
         "seq_len": 50, 
-        "d_model": 128,
-        "num_blocks": 3,
+        "d_model": 256,
+        "num_blocks": 6,
         "num_heads":8,
         "d_ff": 2048,
         "datasource": "bentrevett/multi30k",
