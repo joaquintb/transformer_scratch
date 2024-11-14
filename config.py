@@ -3,12 +3,12 @@ from pathlib import Path
 def get_config():
     return {
         "batch_size": 16,
-        "num_epochs": 5,
-        "lr": 2e-4,
+        "num_epochs": 10,
+        "lr": 1e-5,
         "seq_len": 50, 
-        "d_model": 256,
-        "num_blocks": 6,
-        "num_heads":8,
+        "d_model": 512,
+        "num_blocks": 4,
+        "num_heads":4,
         "d_ff": 2048,
         "datasource": "bentrevett/multi30k",
         "lang_src": "en",

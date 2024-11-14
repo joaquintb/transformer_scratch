@@ -1,4 +1,4 @@
-from config import get_config, get_weights_file_path
+from config import get_config, get_weights_file_path, latest_weights_file_path
 import warnings
 from train import get_or_build_tokenizer, manual_bleu_aggregation, greedy_decode, get_model
 from datasets import load_dataset
@@ -86,7 +86,8 @@ def hyperparam_test(config, hyperparam: str, hyperparam_values):
         
         # Initialize and load model for this configuration
         model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
-        model_filename = get_weights_file_path(config, f"04")  # Modify this if a different file version is needed
+        # model_filename = get_weights_file_path(config, f"09")  # Modify this if a different file version is needed
+        model_filename = latest_weights_file_path(config)
         try:
             state = torch.load(model_filename, map_location=device)
             model.load_state_dict(state['model_state_dict'])
@@ -101,6 +102,5 @@ def hyperparam_test(config, hyperparam: str, hyperparam_values):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_heads_list = [1,2,4,6,8]
-    print("=== Testing various `num_heads` values ===")
-    hyperparam_test(config, 'num_heads', num_heads_list)
+    num_blocks_list = [1,2,4,6]
+    hyperparam_test(config, 'num_blocks', num_blocks_list)
