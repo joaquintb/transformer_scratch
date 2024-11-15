@@ -60,13 +60,13 @@ def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, nu
             target_text = batch["tgt_text"][0]
             model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
 
-            # Remove punctuation to simplify the task
-            model_out_text = remove_punctuation(model_out_text)
+            model_out_text_clean = remove_punctuation(model_out_text)
+            target_text_clean = remove_punctuation(target_text)
 
             # Append results for BLEU calculation
             source_texts.append(source_text)
-            expected.append(target_text)
-            predicted.append(model_out_text)
+            expected.append(target_text_clean)
+            predicted.append(model_out_text_clean)
         
             if count == num_examples:
                 break
