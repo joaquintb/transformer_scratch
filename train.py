@@ -13,12 +13,8 @@ from tqdm import tqdm
 import os
 from pathlib import Path
 
-# Huggingface datasets and tokenizers
 from datasets import load_dataset
-from tokenizers import Tokenizer
-from tokenizers.models import WordLevel
-from tokenizers.trainers import WordLevelTrainer
-from tokenizers.pre_tokenizers import Whitespace
+from tokenizers import Tokenizer, models, pre_tokenizers, trainers
 
 from torchmetrics.text import CharErrorRate, WordErrorRate, BLEUScore
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
@@ -121,7 +117,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.6, 0.3, 0.1, 0), 
+        score = sentence_bleu(target, translation, weights=(0.4, 0.3, 0.2, 0.1), 
                               smoothing_function=smoothing_function)
         total_score += score
     
@@ -130,7 +126,7 @@ def manual_bleu_aggregation(expected, predicted):
     return average_score
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, writer, num_examples=3):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=7):
     model.eval()
     count = 0
 
@@ -148,6 +144,8 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         console_width = 80
 
     with torch.no_grad():
+        print(f'EPOCH {epoch} -- STEP {global_step}')
+        print_msg('*'*console_width)
         for batch in validation_ds:
             count += 1
             encoder_input = batch["encoder_input"].to(device) # (b, seq_len)
@@ -164,6 +162,13 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             target_text = batch["tgt_text"][0]
             model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
 
+            # Post-process to remove space before period
+            if model_out_text.endswith(" ."):
+                model_out_text = model_out_text[:-2] + "."
+
+            # # Move commas to the previous word (if there is a space before the comma)
+            # model_out_text = model_out_text.replace(" ,", ",")
+
             source_texts.append(source_text)
             expected.append(target_text)
             predicted.append(model_out_text)
@@ -175,7 +180,6 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             print_msg(f"{f'PREDICTED: ':>12}{model_out_text}")
 
             if count == num_examples:
-                print_msg('-'*console_width)
                 break
     
     if writer:
@@ -197,32 +201,32 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         writer.add_scalar('validation BLEU', bleu_batch_score, global_step)
         writer.flush()
 
-        # print(f"Manual Aggregate 1-gram BLEU Score: {bleu_batch_score}")
+        print(f"Manual Aggregate BLEU Score: {bleu_batch_score}")
+        print_msg('*'*console_width)
+        print('\n\n')
 
 def get_all_sentences(ds, lang):
+    # Access each row's column by directly using the language code
     for item in ds:
-        yield item['translation'][lang]
+        yield item[lang]
 
 def get_or_build_tokenizer(config, ds, lang):
     tokenizer_path = Path(config['tokenizer_file'].format(lang))
     if not Path.exists(tokenizer_path):
-        # Most code taken from: https://huggingface.co/docs/tokenizers/quicktour
-        tokenizer = Tokenizer(WordLevel(unk_token="[UNK]"))
-        tokenizer.pre_tokenizer = Whitespace()
-        trainer = WordLevelTrainer(special_tokens=["[UNK]", "[PAD]", "[SOS]", "[EOS]"], min_frequency=2)
+        tokenizer = Tokenizer(models.BPE(unk_token="[UNK]"))
+        tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+        trainer = trainers.BpeTrainer(special_tokens=["[UNK]", "[PAD]", "[SOS]", "[EOS]"], min_frequency=2)
         tokenizer.train_from_iterator(get_all_sentences(ds, lang), trainer=trainer)
         tokenizer.save(str(tokenizer_path))
     else:
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
     return tokenizer
 
-def get_ds(config):
+def get_train_ds(config, get_seq_len: bool):
     # It only has the train split, so we divide it overselves
     ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
-
-    # # Take a sample of the full dataset
-    # subset_size = int(0.5 * len(ds_raw))
-    # ds_raw = ds_raw.select(range(subset_size))
+    # Remove the last 1000 entries for testing
+    ds_raw = ds_raw[:-1000]
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
@@ -233,21 +237,22 @@ def get_ds(config):
     val_ds_size = len(ds_raw) - train_ds_size
     train_ds_raw, val_ds_raw = random_split(ds_raw, [train_ds_size, val_ds_size])
 
+    # Create BilingualDataset instances for training, validation and test
     train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
 
-    # Find the maximum length of each sentence in the source and target sentence
-    max_len_src = 0
-    max_len_tgt = 0
+    if get_seq_len:
+        # Find the maximum length of each sentence in the source and target sentence
+        max_len_src = 0
+        max_len_tgt = 0
+        for item in train_ds_raw:
+            src_ids = tokenizer_src.encode(item[config['lang_src']]).ids
+            tgt_ids = tokenizer_tgt.encode(item[config['lang_tgt']]).ids
+            max_len_src = max(max_len_src, len(src_ids))
+            max_len_tgt = max(max_len_tgt, len(tgt_ids))
 
-    for item in ds_raw:
-        src_ids = tokenizer_src.encode(item['translation'][config['lang_src']]).ids
-        tgt_ids = tokenizer_tgt.encode(item['translation'][config['lang_tgt']]).ids
-        max_len_src = max(max_len_src, len(src_ids))
-        max_len_tgt = max(max_len_tgt, len(tgt_ids))
-
-    print(f'Max length of source sentence: {max_len_src}')
-    print(f'Max length of target sentence: {max_len_tgt}')
+        print(f'Max length of source sentence: {max_len_src}')
+        print(f'Max length of target sentence: {max_len_tgt}')
 
     train_dataloader = DataLoader(train_ds, batch_size=config['batch_size'], shuffle=True)
     val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True)
@@ -262,21 +267,21 @@ def train_model(config):
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
     print("Using device:", device)
-    if (device == 'cuda'):
-        print(f"Device name: {torch.cuda.get_device_name(device.index)}")
-        print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
-    elif (device == 'mps'):
-        print(f"Device name: <mps>")
-    else:
-        print("NOTE: If you have a GPU, consider using it for training.")
-        print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")
-        print("      On a Mac machine, run: pip3 install --pre torch torchvision torchaudio torchtext --index-url https://download.pytorch.org/whl/nightly/cpu")
+    # if (device == 'cuda'):
+    #     print(f"Device name: {torch.cuda.get_device_name(device.index)}")
+    #     print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
+    # elif (device == 'mps'):
+    #     print(f"Device name: <mps>")
+    # else:
+    #     print("NOTE: If you have a GPU, consider using it for training.")
+    #     print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")
+    #     print("      On a Mac machine, run: pip3 install --pre torch torchvision torchaudio torchtext --index-url https://download.pytorch.org/whl/nightly/cpu")
     device = torch.device(device)
 
     # Make sure the weights folder exists
-    Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
+    Path(f"{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
-    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
+    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_train_ds(config, get_seq_len=False)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
     num_heads = config['num_heads']
@@ -310,9 +315,9 @@ def train_model(config):
         torch.cuda.empty_cache()
         model.train()
         batch_iterator = tqdm(train_dataloader, desc=f"Processing Epoch {epoch:02d}")
+        
         for batch in batch_iterator:
-
-            encoder_input = batch['encoder_input'].to(device) # (b, seq_len)
+            encoder_input = batch['encoder_input'].to(device) # (B, seq_len)
             decoder_input = batch['decoder_input'].to(device) # (B, seq_len)
             encoder_mask = batch['encoder_mask'].to(device) # (B, 1, 1, seq_len)
             decoder_mask = batch['decoder_mask'].to(device) # (B, 1, seq_len, seq_len)
@@ -340,10 +345,22 @@ def train_model(config):
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
 
+            # Increment the global step counter
             global_step += 1
 
-        # Run validation at the end of every epoch
-        run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
+            # Run validation every 500 iterations
+            if global_step % 500 == 0:
+                run_validation(
+                    model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
+                    device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
+                )
+
+        # Run validation at the end of each epoch as well
+        run_validation(
+            model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
+            device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
+        )
+
 
         # Remove the previous model checkpoint if it exists
         if prev_model_filename is not None and os.path.exists(prev_model_filename):
@@ -361,8 +378,7 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-def hyperparam_test(hyperparam: str, hyperparam_list):
-    config = get_config()
+def hyperparam_train(config, hyperparam: str, hyperparam_list):
     for value in hyperparam_list:
         config[hyperparam] = value
         config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
@@ -371,9 +387,6 @@ def hyperparam_test(hyperparam: str, hyperparam_list):
 
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
-    # Testing impact of hyperparameters in performance
-    # hyperparam_test('num_heads', [1, 4, 8, 16])
-    # hyperparam_test('num_blocks', [2, 4, 6, 8]) 
-    # hyperparam_test('d_model', [128, 256, 512, 1024])
     config = get_config()
-    train_model(config)
+    num_blocks_list = [1,2,4,6]
+    hyperparam_train(config, 'num_blocks', num_blocks_list)
