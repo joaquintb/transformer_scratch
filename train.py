@@ -206,9 +206,8 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
         print('\n\n')
 
 def get_all_sentences(ds, lang):
-    # Access each row's column by directly using the language code
     for item in ds:
-        yield item[lang]
+        yield item['translation'][lang]
 
 def get_or_build_tokenizer(config, ds, lang):
     tokenizer_path = Path(config['tokenizer_file'].format(lang))
@@ -225,8 +224,10 @@ def get_or_build_tokenizer(config, ds, lang):
 def get_train_ds(config, get_seq_len: bool):
     # It only has the train split, so we divide it overselves
     ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
-    # Remove the last 1000 entries for testing
-    ds_raw = ds_raw[:-1000]
+    # Calculate the number of entries to keep
+    num_entries = len(ds_raw)    
+    # Use select to exclude the last 1000 entries
+    ds_raw = ds_raw.select(range(num_entries - 1000))  # Keep all but the last 1000 entries
 
     # Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
@@ -349,7 +350,7 @@ def train_model(config):
             global_step += 1
 
             # Run validation every 500 iterations
-            if global_step % 500 == 0:
+            if global_step % 1000 == 0:
                 run_validation(
                     model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
                     device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
@@ -388,5 +389,5 @@ def hyperparam_train(config, hyperparam: str, hyperparam_list):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_blocks_list = [1,2,4,6]
-    hyperparam_train(config, 'num_blocks', num_blocks_list)
+    num_heads = [4]
+    hyperparam_train(config, 'num_heads', num_heads)
