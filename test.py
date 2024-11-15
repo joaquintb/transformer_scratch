@@ -15,9 +15,12 @@ def get_test_ds(config):
     tokenizer_tgt = get_or_build_tokenizer(config, None, config['lang_tgt'])
 
     # Only train split is available
-    ds_raw = load_dataset(config['datasource'], split='train')
-    # Get the last 1000 entries
-    test_ds_raw = ds_raw[-1000:] 
+    ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
+
+    num_entries = len(ds_raw)
+    # Use select to get the last 1000 entries
+    test_ds_raw = ds_raw.select(range(num_entries - 1000, num_entries))  # Select the last 1000 entries
+
     test_ds = BilingualDataset(test_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=True)
     
@@ -108,5 +111,5 @@ def hyperparam_test(config, hyperparam: str, hyperparam_values):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_heads_list = [1,4,8]
+    num_heads_list = [4]
     hyperparam_test(config, 'num_heads', num_heads_list)

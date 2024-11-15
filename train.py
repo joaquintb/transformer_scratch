@@ -349,8 +349,8 @@ def train_model(config):
             # Increment the global step counter
             global_step += 1
 
-            # Run validation every 500 iterations
-            if global_step % 1000 == 0:
+            # Run validation every 300 iterations
+            if global_step % 300 == 0:
                 run_validation(
                     model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
                     device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer

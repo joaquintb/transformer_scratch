@@ -1,2 +1,73 @@
 ~~~~~~~~~~t_model_4h_512d_6N~~~~~~~~~~
 Using device: cuda
+No model to preload, starting from scratch
+EPOCH 0 -- STEP 1000
+***********************************************************************************************************************
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: But he knew that her reserve of strength was more than enough for the remaining five hundred yards.
+    TARGET: Ma egli sapeva che questa riserva sarebbe stata più che sufficiente per gli ulteriori duecento sazeni.
+ PREDICTED: La sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: "It was mere chance; the subject on which we had been reading had interested me.
+    TARGET: — È stato un caso; l'argomento della lettura mi piaceva.
+ PREDICTED: — E non non non non non non si Aleksandrovic.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: 'None at all.
+    TARGET: — Nessuna.
+ PREDICTED: — E non è.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: I could not understand what he meant, or make him describe to me what he meant by two canoe, till at last, with great difficulty, I found he meant it must be in a large boat, as big as two canoes. This part of Friday’s discourse I began to relish very well; and from this time I entertained some hopes that, one time or other, I might find an opportunity to make my escape from this place, and that this poor savage might be a means to help me.
+    TARGET: Non intendendo che cosa volesse dire con questo suo canotto due volte, me lo feci spiegare, e non senza grande difficoltà arrivai a comprendere che s’intendeva una barca ampia come due canotti; la qual parte del discorso di Venerdì cominciò ad andarmi molto a sangue, onde d’allora in poi non m’abbandonò più la speranza che una volta o l’altra sarei riuscito a fuggire da quest’isola e che quel povero selvaggio poteva aiutarmi ad ottenere un intento così sospirato.
+ PREDICTED: La sua sua sua mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia mia sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua sua , e che non si era , e , e che non si era , e , e che non si era un ’ era , e che non si era , e che , e che non si era un ’ era , e che non si era , e , e , e , e , e che non era , e che non era , e che non si era un ’ era un ’ era un ’ era , e che non si era , e che non si era un ’ era un ’ era un ’ era un ’ era un ’ era un ’
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: 'It turns out...'
+    TARGET: Risulta...
+ PREDICTED: — E non è ?
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: "And what then?" she demanded, in a low voice.
+    TARGET: — Ebbene? — domandò a voce bassa.
+ PREDICTED: — Non è ? — disse , — disse la sua sua sua sua sua sua sua sua.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: CHAPTER III
+    TARGET: III
+ PREDICTED: 
+Manual Aggregate BLEU Score: 0.020203318202308963
+***********************************************************************************************************************
+
+
+
+EPOCH 0 -- STEP 1175
+***********************************************************************************************************************
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: "Are you apprehensive of the new sphere you are about to enter?--of the new life into which you are passing?"
+    TARGET: — Siete in apprensione per la vostra nuova situazione sociale, o per la vita che state per incominciare?
+ PREDICTED: — Non è un ’ è un ’ è un ’ è un ’ è un ’ è un ’ è , non è un ’ è.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: 'No, no, tell me why you do not wish me to be often at the Petrovs?
+    TARGET: — No, ditemi perché non volete che io vada spesso dai Petrov.
+ PREDICTED: — Non non è un ’ è , non non non non non non non non non non non non non non non non non non non non non non non non non non non non non non non non non è.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: On the way home the children were very quiet, feeling that something solemn had taken place.
+    TARGET: Tornando a casa, i bambini sentivano che qualcosa di solenne era stato compiuto, ed erano tranquilli.
+ PREDICTED: Il suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo era.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: CHAPTER XVIII
+    TARGET: XVIII
+ PREDICTED: 
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: Some of the jury wrote it down 'important,' and some 'unimportant.'
+    TARGET: Alcuni dei giurati scrissero “significante”, altri “insignificante.”
+ PREDICTED: Il suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo ic.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: 'Is it really true?' thought Levin, and glanced round at his bride.
+    TARGET: “Possibile che sia vero?” pensò Levin e si voltò a guardare la sposa.
+ PREDICTED: — Non è , non è la sua sua sua sua sua sua sua sua sua sua sua sua sua sua.
+-----------------------------------------------------------------------------------------------------------------------
+    SOURCE: We went into the parlour and sat down.
+    TARGET: Andammo a sederci nella saletta.
+ PREDICTED: Il suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo suo.
+Manual Aggregate BLEU Score: 0.004332905415911627
+***********************************************************************************************************************
+
+
+
