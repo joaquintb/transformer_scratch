@@ -20,6 +20,12 @@ from torchmetrics.text import CharErrorRate, WordErrorRate, BLEUScore
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from torch.utils.tensorboard import SummaryWriter
 
+import re
+
+def remove_punctuation(text):
+    return re.sub(r'[^\w\s]', '', text)  # Removes all punctuation except words and spaces
+
+
 def beam_search_decode(model, beam_size, source, source_mask, tokenizer_src, tokenizer_tgt, max_len, device):
     sos_idx = tokenizer_tgt.token_to_id('[SOS]')
     eos_idx = tokenizer_tgt.token_to_id('[EOS]')
@@ -117,7 +123,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.4, 0.3, 0.2, 0.1), 
+        score = sentence_bleu(target, translation, weights=(0.3, 0.3, 0.2, 0.2), 
                               smoothing_function=smoothing_function)
         total_score += score
     
@@ -162,16 +168,19 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             target_text = batch["tgt_text"][0]
             model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
 
-            # Post-process to remove space before period
-            if model_out_text.endswith(" ."):
-                model_out_text = model_out_text[:-2] + "."
-
+            # # Post-process to remove space before period
+            # if model_out_text.endswith(" ."):
+            #     model_out_text = model_out_text[:-2] + "."
             # # Move commas to the previous word (if there is a space before the comma)
             # model_out_text = model_out_text.replace(" ,", ",")
 
+            # Remove punctuation to simplify the task
+            model_out_text_clean = remove_punctuation(model_out_text)
+            target_text_clean = remove_punctuation(target_text)
+
             source_texts.append(source_text)
-            expected.append(target_text)
-            predicted.append(model_out_text)
+            expected.append(target_text_clean)
+            predicted.append(model_out_text_clean)
             
             # Print the source, target and model output
             print_msg('-'*console_width)

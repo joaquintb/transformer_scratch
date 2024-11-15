@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 import os
 import torch
 from torchmetrics.text import CharErrorRate, WordErrorRate
+from train import remove_punctuation
 
 def get_test_ds(config):
     # Tokenizer already exists, simply retrieve it (Use None for ds to avoid needing train_ds)
@@ -59,8 +60,8 @@ def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, nu
             target_text = batch["tgt_text"][0]
             model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
 
-            # Post-process predicted output
-            model_out_text = model_out_text.replace(" .", ".").replace(" ,", ",")
+            # Remove punctuation to simplify the task
+            model_out_text = remove_punctuation(model_out_text)
 
             # Append results for BLEU calculation
             source_texts.append(source_text)
