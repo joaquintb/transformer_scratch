@@ -112,5 +112,5 @@ def hyperparam_test(config, hyperparam: str, hyperparam_values):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_heads_list = [4]
+    num_heads_list = [1,4,8]
     hyperparam_test(config, 'num_heads', num_heads_list)
