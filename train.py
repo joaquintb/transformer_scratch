@@ -132,7 +132,7 @@ def manual_bleu_aggregation(expected, predicted):
     return average_score
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=7):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=3):
     model.eval()
     count = 0
 
@@ -231,23 +231,28 @@ def get_or_build_tokenizer(config, ds, lang):
     return tokenizer
 
 def get_train_ds(config, get_seq_len: bool):
-    # It only has the train split, so we divide it overselves
-    ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
-    # Calculate the number of entries to keep
-    num_entries = len(ds_raw)    
-    # Use select to exclude the last 1000 entries
-    ds_raw = ds_raw.select(range(num_entries - 1000))  # Keep all but the last 1000 entries
+    # It only has the train split, so we divide it ourselves
+    ds_raw = load_dataset(config['datasource'], split='train')
 
-    # Build tokenizers
+    # Build tokenizers before filtering the dataset
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
     tokenizer_tgt = get_or_build_tokenizer(config, ds_raw, config['lang_tgt'])
+
+    # Filter out sentences whose tokenized length exceeds 500
+    ds_raw = [item for item in ds_raw if len(
+        tokenizer_src.encode(item['translation'][config['lang_src']]).ids) <= 500 and 
+        len(tokenizer_tgt.encode(item['translation'][config['lang_tgt']]).ids) <= 500
+    ]  # Filter based on both source and target sentence lengths
+
+    # Calculate the number of entries to keep
+    num_entries = len(ds_raw)
 
     # Keep 90% for training, 10% for validation
     train_ds_size = int(0.9 * len(ds_raw))
     val_ds_size = len(ds_raw) - train_ds_size
     train_ds_raw, val_ds_raw = random_split(ds_raw, [train_ds_size, val_ds_size])
 
-    # Create BilingualDataset instances for training, validation and test
+    # Create BilingualDataset instances for training, validation, and test
     train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
 
@@ -256,14 +261,15 @@ def get_train_ds(config, get_seq_len: bool):
         max_len_src = 0
         max_len_tgt = 0
         for item in train_ds_raw:
-            src_ids = tokenizer_src.encode(item[config['lang_src']]).ids
-            tgt_ids = tokenizer_tgt.encode(item[config['lang_tgt']]).ids
+            src_ids = tokenizer_src.encode(item['translation'][config['lang_src']]).ids
+            tgt_ids = tokenizer_tgt.encode(item['translation'][config['lang_tgt']]).ids
             max_len_src = max(max_len_src, len(src_ids))
             max_len_tgt = max(max_len_tgt, len(tgt_ids))
-
+            
         print(f'Max length of source sentence: {max_len_src}')
         print(f'Max length of target sentence: {max_len_tgt}')
 
+    # Create DataLoader for training and validation
     train_dataloader = DataLoader(train_ds, batch_size=config['batch_size'], shuffle=True)
     val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=True)
 
@@ -398,5 +404,5 @@ def hyperparam_train(config, hyperparam: str, hyperparam_list):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_heads = [1,4,8]
+    num_heads = [4]
     hyperparam_train(config, 'num_heads', num_heads)
