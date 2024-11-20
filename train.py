@@ -222,7 +222,8 @@ def get_or_build_tokenizer(config, ds, lang):
     tokenizer_path = Path(config['tokenizer_file'].format(lang))
     if not Path.exists(tokenizer_path):
         tokenizer = Tokenizer(models.BPE(unk_token="[UNK]"))
-        tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+        # Use ByteLevel pre-tokenizer for better punctuation handling
+        tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
         trainer = trainers.BpeTrainer(special_tokens=["[UNK]", "[PAD]", "[SOS]", "[EOS]"], min_frequency=2)
         tokenizer.train_from_iterator(get_all_sentences(ds, lang), trainer=trainer)
         tokenizer.save(str(tokenizer_path))
@@ -233,6 +234,10 @@ def get_or_build_tokenizer(config, ds, lang):
 def get_train_ds(config, get_seq_len: bool):
     # It only has the train split, so we divide it ourselves
     ds_raw = load_dataset(config['datasource'], split='train')
+    # Calculate the number of entries to keep
+    num_entries = len(ds_raw)    
+    # Use select to exclude the last 1000 entries for testing later
+    ds_raw = ds_raw.select(range(num_entries - 1000))  # Keep all but the last 1000 entries
 
     # Build tokenizers before filtering the dataset
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
@@ -243,9 +248,6 @@ def get_train_ds(config, get_seq_len: bool):
         tokenizer_src.encode(item['translation'][config['lang_src']]).ids) <= 500 and 
         len(tokenizer_tgt.encode(item['translation'][config['lang_tgt']]).ids) <= 500
     ]  # Filter based on both source and target sentence lengths
-
-    # Calculate the number of entries to keep
-    num_entries = len(ds_raw)
 
     # Keep 90% for training, 10% for validation
     train_ds_size = int(0.9 * len(ds_raw))
@@ -297,7 +299,7 @@ def train_model(config):
     # Make sure the weights folder exists
     Path(f"{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
-    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_train_ds(config, get_seq_len=False)
+    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_train_ds(config, get_seq_len=True)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
     num_heads = config['num_heads']
