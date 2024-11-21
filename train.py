@@ -123,7 +123,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.3, 0.3, 0.2, 0.2), 
+        score = sentence_bleu(target, translation, weights=(0.4, 0.3, 0.2, 0.1), 
                               smoothing_function=smoothing_function)
         total_score += score
     
@@ -132,7 +132,7 @@ def manual_bleu_aggregation(expected, predicted):
     return average_score
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=3):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=10):
     model.eval()
     count = 0
 
@@ -299,7 +299,7 @@ def train_model(config):
     # Make sure the weights folder exists
     Path(f"{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
-    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_train_ds(config, get_seq_len=True)
+    train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_train_ds(config, get_seq_len=False)
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
     # Tensorboard
     num_heads = config['num_heads']
@@ -366,8 +366,7 @@ def train_model(config):
             # Increment the global step counter
             global_step += 1
 
-            # Run validation every 300 iterations
-            if global_step % 300 == 0:
+            if global_step % 1000 == 0:
                 run_validation(
                     model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
                     device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
