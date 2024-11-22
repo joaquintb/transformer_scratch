@@ -28,7 +28,7 @@ def get_test_ds(config):
     return test_dataloader, tokenizer_src, tokenizer_tgt
 
 
-def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=100):
+def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=500):
     model.eval()
     count = 0
     source_texts = []
