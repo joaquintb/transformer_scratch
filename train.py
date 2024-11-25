@@ -115,7 +115,7 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
 
 def manual_bleu_aggregation(expected, predicted):
     total_score = 0
-    smoothing_function = SmoothingFunction().method1
+    smoothing_function = SmoothingFunction().method2
     
     # Calculate BLEU score for each sentence
     for target_sentence, translation_sentence in zip(expected, predicted):
@@ -132,7 +132,7 @@ def manual_bleu_aggregation(expected, predicted):
     return average_score
 
 
-def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=10):
+def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, device, print_msg, global_step, epoch, writer, num_examples=100):
     model.eval()
     count = 0
 
@@ -162,17 +162,11 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
                 0) == 1, "Batch size must be 1 for validation"
     
             # model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
-            model_out = beam_search_decode(model, 3, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
+            model_out = beam_search_decode(model, 5, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
 
             source_text = batch["src_text"][0]
             target_text = batch["tgt_text"][0]
             model_out_text = tokenizer_tgt.decode(model_out.detach().cpu().numpy())
-
-            # # Post-process to remove space before period
-            # if model_out_text.endswith(" ."):
-            #     model_out_text = model_out_text[:-2] + "."
-            # # Move commas to the previous word (if there is a space before the comma)
-            # model_out_text = model_out_text.replace(" ,", ",")
 
             # Remove punctuation to simplify the task
             model_out_text_clean = remove_punctuation(model_out_text)
@@ -366,7 +360,7 @@ def train_model(config):
             # Increment the global step counter
             global_step += 1
 
-            if global_step % 1000 == 0:
+            if global_step % 700 == 0:
                 run_validation(
                     model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
                     device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
@@ -408,5 +402,11 @@ def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    for h in [1,4,8]:
-        new_config = get_new_config(config, d_model=config['d_model'], num_blocks=config['num_blocks'], num_heads=h, d_ff=config['d_ff'])
+
+    config_weak = get_new_config(config, d_model=256, num_blocks=1, num_heads=1, d_ff=1024)
+    config_strong = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
+    train_model(config_weak)
+    train_model(config_strong)
+   
+    
+    
