@@ -84,33 +84,38 @@ def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, nu
     print('\n\n')
 
 
-def hyperparam_test(config, hyperparam: str, hyperparam_values):
-    # Initialize the test dataset and tokenizers only once
+def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
+    new_config = config.copy()
+    new_config['d_model'] = d_model
+    new_config['num_blocks'] = num_blocks
+    new_config['num_heads'] = num_heads
+    new_config['d_ff'] = d_ff
+    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}"
+
+    return new_config
+
+def hyperparam_test(config):
     test_ds, tokenizer_src, tokenizer_tgt = get_test_ds(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    for value in hyperparam_values:
-        # Update configuration with current hyperparameter value
-        config[hyperparam] = value
-        config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
         
-        # Initialize and load model for this configuration
-        model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
-        # model_filename = get_weights_file_path(config, f"09")  # Modify this if a different file version is needed
-        model_filename = latest_weights_file_path(config)
-        try:
-            state = torch.load(model_filename, map_location=device)
-            model.load_state_dict(state['model_state_dict'])
-            print(f"Loaded model weights from: {model_filename}\n\n")
-            
-            # Run the test and print BLEU score
-            print(f"Testing model: {config['model_basename']}")
-            test_model(model, test_ds, tokenizer_src, tokenizer_tgt, config['seq_len'], device)
-        except FileNotFoundError:
-            print(f"Model weights file not found: {model_filename}. Skipping this configuration.")
+    # Initialize and load model for this configuration
+    model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
+    model_filename = get_weights_file_path(config, f"14")  # Modify this if a different file version is needed
+    # model_filename = latest_weights_file_path(config)
+    try:
+        state = torch.load(model_filename, map_location=device)
+        model.load_state_dict(state['model_state_dict'])
+        print(f"Loaded model weights from: {model_filename}\n\n")
+        
+        # Run the test and print BLEU score
+        print(f"Testing model: {config['model_basename']}")
+
+        test_model(model, test_ds, tokenizer_src, tokenizer_tgt, config['seq_len'], device)
+
+    except FileNotFoundError:
+        print(f"Model weights file not found: {model_filename}. Skipping this configuration.")
 
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_heads_list = [1,4,8]
-    hyperparam_test(config, 'num_heads', num_heads_list)
+

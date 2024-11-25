@@ -395,15 +395,18 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-def hyperparam_train(config, hyperparam: str, hyperparam_list):
-    for value in hyperparam_list:
-        config[hyperparam] = value
-        config['model_basename'] = f"t_model_{config['num_heads']}h_{config['d_model']}d_{config['num_blocks']}N"
-        print(f"~~~~~~~~~~{config['model_basename']}~~~~~~~~~~")
-        train_model(config)
+def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
+    new_config = config.copy()
+    new_config['d_model'] = d_model
+    new_config['num_blocks'] = num_blocks
+    new_config['num_heads'] = num_heads
+    new_config['d_ff'] = d_ff
+    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}"
+
+    return new_config
 
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
-    num_heads = [1,8]
-    hyperparam_train(config, 'num_heads', num_heads)
+    for h in [1,4,8]:
+        new_config = get_new_config(config, d_model=config['d_model'], num_blocks=config['num_blocks'], num_heads=h, d_ff=config['d_ff'])
