@@ -299,11 +299,12 @@ def train_model(config):
     num_heads = config['num_heads']
     d_model = config['d_model']
     num_blocks = config['num_blocks']
-    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N"
+    dff = config['d_ff']
+    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff"
     writer = SummaryWriter(experiment_name)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
-    scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
+    # scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
 
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
@@ -390,7 +391,7 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-        scheduler.step()
+        # scheduler.step()
 
 def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
     new_config = config.copy()
@@ -406,7 +407,15 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    config_weak = get_new_config(config, d_model=128, num_blocks=1, num_heads=1, d_ff=512)
-    config_strong = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
-    train_model(config_weak)
-    train_model(config_strong)
+    # Testing different numbers of heads with a constant d_model
+    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
+    train_model(config1)
+
+    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
+    train_model(config2)
+
+    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
+    train_model(config3)
+
+    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048)
+    train_model(config4)

@@ -119,7 +119,8 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    for h in [1,4,8]:
-        config = get_new_config(config, d_model=512, num_blocks=6, num_heads=h, d_ff=2048)
-        hyperparam_test(config)
+    config_weak = get_new_config(config, d_model=128, num_blocks=1, num_heads=1, d_ff=512)
+    config_strong = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
+
+    hyperparam_test(config_strong)
 
