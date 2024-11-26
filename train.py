@@ -406,7 +406,7 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    config_weak = get_new_config(config, d_model=256, num_blocks=1, num_heads=1, d_ff=1024)
+    config_weak = get_new_config(config, d_model=128, num_blocks=1, num_heads=1, d_ff=512)
     config_strong = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
     train_model(config_weak)
     train_model(config_strong)
