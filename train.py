@@ -6,7 +6,7 @@ import torchtext.datasets as datasets
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim.lr_scheduler import StepLR
 
 import warnings
 from tqdm import tqdm
@@ -161,8 +161,8 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             assert encoder_input.size(
                 0) == 1, "Batch size must be 1 for validation"
     
-            # model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
-            model_out = beam_search_decode(model, 5, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
+            model_out = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
+            # model_out = beam_search_decode(model, 5, encoder_input, encoder_mask, tokenizer_src, tokenizer_tgt, max_len, device)
 
             source_text = batch["src_text"][0]
             target_text = batch["tgt_text"][0]
@@ -303,6 +303,7 @@ def train_model(config):
     writer = SummaryWriter(experiment_name)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
+    scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
 
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
@@ -389,13 +390,15 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
+        scheduler.step()
+
 def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
     new_config = config.copy()
     new_config['d_model'] = d_model
     new_config['num_blocks'] = num_blocks
     new_config['num_heads'] = num_heads
     new_config['d_ff'] = d_ff
-    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}"
+    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff"
 
     return new_config
 
@@ -407,6 +410,3 @@ if __name__ == '__main__':
     config_strong = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
     train_model(config_weak)
     train_model(config_strong)
-   
-    
-    
