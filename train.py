@@ -6,7 +6,6 @@ import torchtext.datasets as datasets
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
-from torch.optim.lr_scheduler import StepLR
 
 import warnings
 from tqdm import tqdm
@@ -115,7 +114,7 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
 
 def manual_bleu_aggregation(expected, predicted):
     total_score = 0
-    smoothing_function = SmoothingFunction().method2
+    smoothing_function = SmoothingFunction().method1
     
     # Calculate BLEU score for each sentence
     for target_sentence, translation_sentence in zip(expected, predicted):
@@ -303,9 +302,8 @@ def train_model(config):
     experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff"
     writer = SummaryWriter(experiment_name)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
-    # scheduler = StepLR(optimizer, step_size=5, gamma=0.1)
-
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9, weight_decay=0.01)
+                                  
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
     global_step = 0
@@ -391,8 +389,6 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-        # scheduler.step()
-
 def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
     new_config = config.copy()
     new_config['d_model'] = d_model
@@ -408,14 +404,14 @@ if __name__ == '__main__':
     config = get_config()
 
     # Testing different numbers of heads with a constant d_model
-    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
-    train_model(config1)
+    # config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
+    # train_model(config1)
 
-    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
-    train_model(config2)
+    # config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
+    # train_model(config2)
 
-    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
-    train_model(config3)
+    # config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
+    # train_model(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048)
+    config4 = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
     train_model(config4)
