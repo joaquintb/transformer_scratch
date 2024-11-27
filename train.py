@@ -302,7 +302,7 @@ def train_model(config):
     experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff"
     writer = SummaryWriter(experiment_name)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9, weight_decay=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
                                   
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
@@ -404,14 +404,14 @@ if __name__ == '__main__':
     config = get_config()
 
     # Testing different numbers of heads with a constant d_model
-    # config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
-    # train_model(config1)
+    config1 = get_new_config(config, d_model=512, num_blocks=6, num_heads=1, d_ff=1024)
+    train_model(config1)
 
-    # config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
-    # train_model(config2)
+    config2 = get_new_config(config, d_model=512, num_blocks=6, num_heads=2, d_ff=1024)
+    train_model(config2)
 
-    # config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
-    # train_model(config3)
+    config3 = get_new_config(config, d_model=512, num_blocks=6, num_heads=4, d_ff=1024)
+    train_model(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
+    config4 = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=1024)
     train_model(config4)

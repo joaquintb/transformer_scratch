@@ -3,13 +3,13 @@ from pathlib import Path
 def get_config():
     return {
         "batch_size": 16,
-        "num_epochs": 15,
+        "num_epochs": 18,
         "lr": 10**-4,
         "seq_len": 300,
         "d_model": 512,
         "num_blocks": 6,
         "num_heads":8,
-        "d_ff": 1024, # Originally 2048
+        "d_ff": 2048,
         "datasource": "Helsinki-NLP/opus_tedtalks",
         "lang_src": "en",
         "lang_tgt": "hr",
