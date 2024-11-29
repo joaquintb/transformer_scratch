@@ -22,7 +22,7 @@ def get_test_ds(config):
     ds_shuffled = ds_raw.shuffle(seed=1)
 
     # Select the first 1000 entries (reserved for testing)
-    test_ds_raw = ds_shuffled.select(range(500))  # Get only the first 1000 entries
+    test_ds_raw = ds_shuffled.select(range(1000))  # Get only the first 1000 entries
 
     test_ds = BilingualDataset(test_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False) # shuffle=False for consistent order in testing
@@ -30,7 +30,7 @@ def get_test_ds(config):
     return test_dataloader, tokenizer_src, tokenizer_tgt
 
 
-def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=500):
+def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=1000):
     model.eval()
     count = 0
     source_texts = []
