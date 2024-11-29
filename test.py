@@ -16,15 +16,17 @@ def get_test_ds(config):
     tokenizer_tgt = get_or_build_tokenizer(config, None, config['lang_tgt'])
 
     # Only train split is available
-    ds_raw = load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train')
+    ds_raw = load_dataset(config['datasource'], split='train')
 
-    num_entries = len(ds_raw)
-    # Use select to get the last 1000 entries
-    test_ds_raw = ds_raw.select(range(num_entries - 1000, num_entries))  # Select the last 1000 entries
+    # Shuffle the dataset with seed for reproducibility
+    ds_shuffled = ds_raw.shuffle(seed=1)
+
+    # Select the first 1000 entries (reserved for testing)
+    test_ds_raw = ds_shuffled.select(range(500))  # Get only the first 1000 entries
 
     test_ds = BilingualDataset(test_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
-    test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=True)
-    
+    test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False) # shuffle=False for consistent order in testing
+     
     return test_dataloader, tokenizer_src, tokenizer_tgt
 
 
@@ -119,8 +121,14 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    config_weak = get_new_config(config, d_model=128, num_blocks=1, num_heads=1, d_ff=512)
-    config_strong = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048)
+    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=1024)
+    hyperparam_test(config1)
 
-    hyperparam_test(config_strong)
+    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=1024)
+    hyperparam_test(config2)
 
+    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=1024)
+    hyperparam_test(config3)
+
+    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=1024)
+    hyperparam_test(config4)

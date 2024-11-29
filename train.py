@@ -19,7 +19,7 @@ from torchmetrics.text import CharErrorRate, WordErrorRate, BLEUScore
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from torch.utils.tensorboard import SummaryWriter
 
-import re
+import re, random
 
 def remove_punctuation(text):
     return re.sub(r'[^\w\s]', '', text)  # Removes all punctuation except words and spaces
@@ -228,9 +228,12 @@ def get_train_ds(config, get_seq_len: bool):
     # It only has the train split, so we divide it ourselves
     ds_raw = load_dataset(config['datasource'], split='train')
     # Calculate the number of entries to keep
-    num_entries = len(ds_raw)    
-    # Use select to exclude the last 1000 entries for testing later
-    ds_raw = ds_raw.select(range(num_entries - 1000))  # Keep all but the last 1000 entries
+    num_entries = len(ds_raw)   
+
+    ds_shuffled = ds_raw.shuffle(seed=1)
+
+    # Remove the first 1000 entries (reserved for testing)
+    ds_raw = ds_shuffled.select(range(1000, len(ds_shuffled)))  # Keep all but the first 1000
 
     # Build tokenizers before filtering the dataset
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
