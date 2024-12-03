@@ -277,6 +277,12 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
     model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'], N=config['num_blocks'], h=config['num_heads'], d_ff=config['d_ff'])
     return model
 
+# # Learning rate scheduler function (from previous explanation)
+# def lr_schedule(step, d_model=512, warmup_steps=4000):
+#     scale = d_model ** -0.5
+#     step = max(step, 1)  # Prevent division by zero
+#     return scale * min(step ** -0.5, step * warmup_steps ** -1.5)
+
 def train_model(config):
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
@@ -305,7 +311,17 @@ def train_model(config):
     experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff"
     writer = SummaryWriter(experiment_name)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
+    optimizer = torch.optim.Adam(
+        model.parameters(), 
+        lr=config['lr'],  # Initial learning rate (scaled by the schedule)
+        #betas=(0.9, 0.98),  # (beta1, beta2)
+        eps=1e-9  # epsilon
+    )
+
+    # Attach the learning rate scheduler
+    # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda step: lr_schedule(step))
+
                                   
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
@@ -360,6 +376,8 @@ def train_model(config):
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
 
+            # scheduler.step()  # Update learning rate based on schedule
+
             # Increment the global step counter
             global_step += 1
 
@@ -407,14 +425,14 @@ if __name__ == '__main__':
     config = get_config()
 
     # Testing different numbers of heads with a constant d_model
-    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=1024)
-    train_model(config1)
+    # config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
+    # train_model(config1)
 
-    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=1024)
-    train_model(config2)
+    # config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
+    # train_model(config2)
 
-    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=1024)
+    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
     train_model(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=1024)
-    train_model(config4)
+    # config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048)
+    # train_model(config4)

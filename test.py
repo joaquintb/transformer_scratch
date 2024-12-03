@@ -75,13 +75,13 @@ def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, nu
     
     # Print test metrics
     bleu_score = manual_bleu_aggregation(expected, predicted)
-    print(f"Average BLEU Score on Test Dataset: {bleu_score:.2f}")
+    print(f"Average BLEU Score on Test Dataset: {bleu_score:.4f}")
     metric = CharErrorRate()
     cer = metric(predicted, expected)
-    print(f"\nAverage CER on Test Dataset: {cer:.2f}")
+    print(f"\nAverage CER on Test Dataset: {cer:.4f}")
     metric = WordErrorRate()
     wer = metric(predicted, expected)
-    print(f"\nAverage WER on Test Dataset: {wer:.2f}")
+    print(f"\nAverage WER on Test Dataset: {wer:.4f}")
     print('*' * console_width)
     print('\n\n')
 
@@ -121,14 +121,14 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=1024)
-    hyperparam_test(config1)
+    # config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
+    # hyperparam_test(config1)
 
-    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=1024)
-    hyperparam_test(config2)
+    # config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
+    # hyperparam_test(config2)
 
-    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=1024)
-    hyperparam_test(config3)
+    # config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
+    # hyperparam_test(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=1024)
+    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048)
     hyperparam_test(config4)
