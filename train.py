@@ -122,7 +122,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.4, 0.3, 0.2, 0.1), 
+        score = sentence_bleu(target, translation, weights=(0.6,0.3,0.1), 
                               smoothing_function=smoothing_function)
         total_score += score
     
@@ -230,7 +230,7 @@ def get_train_ds(config, get_seq_len: bool):
     # Calculate the number of entries to keep
     num_entries = len(ds_raw)   
 
-    ds_shuffled = ds_raw.shuffle(seed=1)
+    ds_shuffled = ds_raw.shuffle(seed=42)
 
     # Remove the first 1000 entries (reserved for testing)
     ds_raw = ds_shuffled.select(range(1000, len(ds_shuffled)))  # Keep all but the first 1000
@@ -308,7 +308,8 @@ def train_model(config):
     d_model = config['d_model']
     num_blocks = config['num_blocks']
     dff = config['d_ff']
-    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff"
+    batch_size = config['batch_size']
+    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff_{batch_size}b"
     writer = SummaryWriter(experiment_name)
 
     # optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
@@ -410,13 +411,14 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
+def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size):
     new_config = config.copy()
     new_config['d_model'] = d_model
     new_config['num_blocks'] = num_blocks
     new_config['num_heads'] = num_heads
     new_config['d_ff'] = d_ff
-    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff"
+    new_config['batch_size'] = batch_size
+    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b"
 
     return new_config
 
@@ -425,14 +427,14 @@ if __name__ == '__main__':
     config = get_config()
 
     # Testing different numbers of heads with a constant d_model
-    # config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
-    # train_model(config1)
+    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048, batch_size=16)
+    train_model(config1)
 
-    # config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
-    # train_model(config2)
+    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048, batch_size=16)
+    train_model(config2)
 
-    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
+    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048, batch_size=16)
     train_model(config3)
 
-    # config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048)
-    # train_model(config4)
+    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048, batch_size=16)
+    train_model(config4)

@@ -229,6 +229,7 @@ def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int
     print(f"Number of heads: {h}")
     print(f"Number of blocks: {N}")
     print(f"Dimension of embedding: {d_model}")
+    print(f'')
     print('#'*10)
 
     # Create the embedding layers

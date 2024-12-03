@@ -86,13 +86,14 @@ def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, nu
     print('\n\n')
 
 
-def get_new_config(config, d_model, num_blocks, num_heads, d_ff):
+def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size):
     new_config = config.copy()
     new_config['d_model'] = d_model
     new_config['num_blocks'] = num_blocks
     new_config['num_heads'] = num_heads
     new_config['d_ff'] = d_ff
-    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff"
+    new_config['batch_size'] = batch_size
+    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b"
 
     return new_config
 
@@ -127,8 +128,8 @@ if __name__ == '__main__':
     # config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
     # hyperparam_test(config2)
 
-    # config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048)
-    # hyperparam_test(config3)
+    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048, batch_size=16)
+    hyperparam_test(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048)
+    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048, batch_size=24)
     hyperparam_test(config4)
