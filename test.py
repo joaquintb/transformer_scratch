@@ -19,7 +19,7 @@ def get_test_ds(config):
     ds_raw = load_dataset(config['datasource'], split='train')
 
     # Shuffle the dataset with seed for reproducibility
-    ds_shuffled = ds_raw.shuffle(seed=1)
+    ds_shuffled = ds_raw.shuffle(seed=7) 
 
     # Select the first 1000 entries (reserved for testing)
     test_ds_raw = ds_shuffled.select(range(1000))  # Get only the first 1000 entries
@@ -103,7 +103,7 @@ def hyperparam_test(config):
         
     # Initialize and load model for this configuration
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
-    model_filename = get_weights_file_path(config, f"14")  # Modify this if a different file version is needed
+    model_filename = get_weights_file_path(config, epoch=14)  # Modify this if a different file version is needed
     # model_filename = latest_weights_file_path(config)
     try:
         state = torch.load(model_filename, map_location=device)
@@ -122,14 +122,14 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    # config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048)
-    # hyperparam_test(config1)
+    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048, batch_size=16)
+    hyperparam_test(config1)
 
-    # config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048)
-    # hyperparam_test(config2)
+    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048, batch_size=16)
+    hyperparam_test(config2)
 
     config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048, batch_size=16)
     hyperparam_test(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048, batch_size=24)
+    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048, batch_size=16)
     hyperparam_test(config4)

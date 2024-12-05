@@ -1,0 +1,3 @@
+- Epoch argument in test
+- Seed
+- Testing outout files 

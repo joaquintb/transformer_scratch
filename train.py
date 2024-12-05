@@ -122,7 +122,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.6,0.3,0.1), 
+        score = sentence_bleu(target, translation, weights=(0.5,0.3,0.2), 
                               smoothing_function=smoothing_function)
         total_score += score
     
@@ -230,7 +230,7 @@ def get_train_ds(config, get_seq_len: bool):
     # Calculate the number of entries to keep
     num_entries = len(ds_raw)   
 
-    ds_shuffled = ds_raw.shuffle(seed=42)
+    ds_shuffled = ds_raw.shuffle(seed=7)
 
     # Remove the first 1000 entries (reserved for testing)
     ds_raw = ds_shuffled.select(range(1000, len(ds_shuffled)))  # Keep all but the first 1000
@@ -427,14 +427,14 @@ if __name__ == '__main__':
     config = get_config()
 
     # Testing different numbers of heads with a constant d_model
-    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048, batch_size=16)
+    config1 = get_new_config(config, d_model=512, num_blocks=1, num_heads=1, d_ff=2048, batch_size=16)
     train_model(config1)
 
-    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048, batch_size=16)
+    config2 = get_new_config(config, d_model=512, num_blocks=1, num_heads=2, d_ff=2048, batch_size=16)
     train_model(config2)
 
-    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048, batch_size=16)
+    config3 = get_new_config(config, d_model=512, num_blocks=1, num_heads=4, d_ff=2048, batch_size=16)
     train_model(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048, batch_size=16)
+    config4 = get_new_config(config, d_model=512, num_blocks=1, num_heads=8, d_ff=2048, batch_size=16)
     train_model(config4)
