@@ -122,7 +122,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.5,0.3,0.2), 
+        score = sentence_bleu(target, translation, weights=(0.5,0.35,0.15), 
                               smoothing_function=smoothing_function)
         total_score += score
     
@@ -427,14 +427,14 @@ if __name__ == '__main__':
     config = get_config()
 
     # Testing different numbers of heads with a constant d_model
-    config1 = get_new_config(config, d_model=512, num_blocks=1, num_heads=1, d_ff=2048, batch_size=16)
+    config1 = get_new_config(config, d_model=512, num_blocks=6, num_heads=1, d_ff=2048, batch_size=16)
     train_model(config1)
 
-    config2 = get_new_config(config, d_model=512, num_blocks=1, num_heads=2, d_ff=2048, batch_size=16)
+    config2 = get_new_config(config, d_model=512, num_blocks=6, num_heads=2, d_ff=2048, batch_size=16)
     train_model(config2)
 
-    config3 = get_new_config(config, d_model=512, num_blocks=1, num_heads=4, d_ff=2048, batch_size=16)
+    config3 = get_new_config(config, d_model=512, num_blocks=6, num_heads=4, d_ff=2048, batch_size=16)
     train_model(config3)
 
-    config4 = get_new_config(config, d_model=512, num_blocks=1, num_heads=8, d_ff=2048, batch_size=16)
+    config4 = get_new_config(config, d_model=512, num_blocks=6, num_heads=8, d_ff=2048, batch_size=16)
     train_model(config4)
