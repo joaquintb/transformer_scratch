@@ -13,7 +13,7 @@ def get_config():
         "datasource": "Helsinki-NLP/opus_tedtalks",
         "lang_src": "en",
         "lang_tgt": "hr",
-        "model_folder": "trained_models",
+        "model_folder": "trained_models_ted_talks",
         "model_basename": "tmodel",
         "preload": "latest",
         "tokenizer_file": "tokenizer_{0}.json",

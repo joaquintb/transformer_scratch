@@ -225,11 +225,11 @@ class Transformer(nn.Module):
     
 def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int, tgt_seq_len: int, d_model: int, N: int, h: int, d_ff: int, dropout: float=0.15) -> Transformer:
 
-    print('#'*10)
-    print(f"Number of heads: {h}")
-    print(f"Number of blocks: {N}")
-    print(f"Dimension of embedding: {d_model}")
-    print('#'*10)
+    # print('#'*10)
+    # print(f"Number of heads: {h}")
+    # print(f"Number of blocks: {N}")
+    # print(f"Dimension of embedding: {d_model}")
+    # print('#'*10)
 
     # Create the embedding layers
     src_embed = InputEmbeddings(d_model, src_vocab_size)

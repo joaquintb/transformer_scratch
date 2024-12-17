@@ -9,6 +9,7 @@ import os
 import torch
 from torchmetrics.text import CharErrorRate, WordErrorRate
 from train import remove_punctuation
+import evaluate
 
 def get_test_ds(config):
     # Tokenizer already exists, simply retrieve it (Use None for ds to avoid needing train_ds)
@@ -22,7 +23,7 @@ def get_test_ds(config):
     ds_shuffled = ds_raw.shuffle(seed=7) 
 
     # Select the first 1000 entries (reserved for testing)
-    test_ds_raw = ds_shuffled.select(range(1000))  # Get only the first 1000 entries
+    test_ds_raw = ds_shuffled.select(range(100))  # Get only the first 1000 entries
 
     test_ds = BilingualDataset(test_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False) # shuffle=False for consistent order in testing
@@ -30,7 +31,7 @@ def get_test_ds(config):
     return test_dataloader, tokenizer_src, tokenizer_tgt
 
 
-def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=1000):
+def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=100):
     model.eval()
     count = 0
     source_texts = []
@@ -74,8 +75,11 @@ def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, nu
                 break
     
     # Print test metrics
-    bleu_score = manual_bleu_aggregation(expected, predicted)
-    print(f"Average BLEU Score on Test Dataset: {bleu_score:.4f}")
+    # bleu_score = manual_bleu_aggregation(expected, predicted)
+    # print(f"Average BLEU Score on Test Dataset: {bleu_score:.4f}")
+    metric = evaluate.load('meteor')
+    results = metric.compute(predictions=predicted, references=expected)
+    print(f"METEOR Score: {round(results['meteor'], 4)}")
     metric = CharErrorRate()
     cer = metric(predicted, expected)
     print(f"\nAverage CER on Test Dataset: {cer:.4f}")
@@ -122,14 +126,10 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    config1 = get_new_config(config, d_model=512, num_blocks=3, num_heads=1, d_ff=2048, batch_size=16)
-    hyperparam_test(config1)
+    for h in [1,2,4,8]:
+        config = get_new_config(config, d_model=256, num_blocks=6, num_heads=h, d_ff=1024, batch_size=16)
+        hyperparam_test(config)
 
-    config2 = get_new_config(config, d_model=512, num_blocks=3, num_heads=2, d_ff=2048, batch_size=16)
-    hyperparam_test(config2)
+        config = get_new_config(config, d_model=512, num_blocks=6, num_heads=h, d_ff=2048, batch_size=16)
+        hyperparam_test(config)
 
-    config3 = get_new_config(config, d_model=512, num_blocks=3, num_heads=4, d_ff=2048, batch_size=16)
-    hyperparam_test(config3)
-
-    config4 = get_new_config(config, d_model=512, num_blocks=3, num_heads=8, d_ff=2048, batch_size=16)
-    hyperparam_test(config4)
