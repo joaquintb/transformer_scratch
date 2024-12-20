@@ -122,7 +122,7 @@ def manual_bleu_aggregation(expected, predicted):
         target = [target_sentence.split()]  # Wrap in a list for multiple references
         translation = translation_sentence.split()
 
-        score = sentence_bleu(target, translation, weights=(0.5,0.3,0.2), 
+        score = sentence_bleu(target, translation, weights=(0.6,0.3,0.1), 
                               smoothing_function=smoothing_function)
         total_score += score
     

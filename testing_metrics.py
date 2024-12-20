@@ -45,13 +45,13 @@ meteor = evaluate.load('meteor')
 
 # Define your lists of predictions and references
 predictions = [
-    "I am feeling very happy",
-    "This is great"
+    "This is a test",
+    "Hey there"
 ]
 
 references = [
-    "I am super happy",
-    "This is great"
+    "It is a test",
+    "Hello"
 ]
 
 # Compute the METEOR score

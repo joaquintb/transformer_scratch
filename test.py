@@ -10,6 +10,11 @@ import torch
 from torchmetrics.text import CharErrorRate, WordErrorRate
 from train import remove_punctuation
 import evaluate
+import csv
+from itertools import product
+import random
+from sacrebleu.metrics import CHRF
+
 
 def get_test_ds(config):
     # Tokenizer already exists, simply retrieve it (Use None for ds to avoid needing train_ds)
@@ -22,14 +27,27 @@ def get_test_ds(config):
     # Shuffle the dataset with seed for reproducibility
     ds_shuffled = ds_raw.shuffle(seed=7) 
 
-    # Select the first 1000 entries (reserved for testing)
-    test_ds_raw = ds_shuffled.select(range(100))  # Get only the first 1000 entries
+    # Randomly select 100 indices from the first 1000 entries
+    random_indices = random.sample(list(range(1000)), 100)
+
+    # Select those entries from the dataset
+    test_ds_raw = ds_shuffled.select(random_indices)
 
     test_ds = BilingualDataset(test_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False) # shuffle=False for consistent order in testing
      
     return test_dataloader, tokenizer_src, tokenizer_tgt
 
+def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size):
+    new_config = config.copy()
+    new_config['d_model'] = d_model
+    new_config['num_blocks'] = num_blocks
+    new_config['num_heads'] = num_heads
+    new_config['d_ff'] = d_ff
+    new_config['batch_size'] = batch_size
+    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b"
+
+    return new_config
 
 def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=100):
     model.eval()
@@ -73,51 +91,60 @@ def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, nu
         
             if count == num_examples:
                 break
-    
-    # Print test metrics
-    # bleu_score = manual_bleu_aggregation(expected, predicted)
-    # print(f"Average BLEU Score on Test Dataset: {bleu_score:.4f}")
+
+    chrf = CHRF(word_order=2)  # Includes up to bigram character order
+    score = chrf.corpus_score(predicted, [expected])
+    chrf_score = round(score.score, 4)
+
+    # Compute metrics
+    bleu_score = round(manual_bleu_aggregation(expected, predicted),4)
+
     metric = evaluate.load('meteor')
     results = metric.compute(predictions=predicted, references=expected)
-    print(f"METEOR Score: {round(results['meteor'], 4)}")
+    meteor_score = round(results['meteor'], 4)
+
     metric = CharErrorRate()
-    cer = metric(predicted, expected)
-    print(f"\nAverage CER on Test Dataset: {cer:.4f}")
+    cer = round(metric(predicted, expected).item(),4)
+
     metric = WordErrorRate()
-    wer = metric(predicted, expected)
-    print(f"\nAverage WER on Test Dataset: {wer:.4f}")
-    print('*' * console_width)
-    print('\n\n')
+    wer = round(metric(predicted, expected).item(),4)
 
+    return {
+        'BLEU': bleu_score,
+        'METEOR': meteor_score,
+        'CER': cer,
+        'WER': wer,
+        'CHRF': chrf_score
+    }
 
-def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size):
-    new_config = config.copy()
-    new_config['d_model'] = d_model
-    new_config['num_blocks'] = num_blocks
-    new_config['num_heads'] = num_heads
-    new_config['d_ff'] = d_ff
-    new_config['batch_size'] = batch_size
-    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b"
-
-    return new_config
-
-def hyperparam_test(config):
+def hyperparam_test(config, results):
     test_ds, tokenizer_src, tokenizer_tgt = get_test_ds(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
     # Initialize and load model for this configuration
     model = get_model(config, tokenizer_src.get_vocab_size(), tokenizer_tgt.get_vocab_size()).to(device)
-    model_filename = get_weights_file_path(config, epoch=14)  # Modify this if a different file version is needed
-    # model_filename = latest_weights_file_path(config)
+    model_filename = get_weights_file_path(config, epoch=config['num_epochs']-1)  # epochs start counting at 0
     try:
         state = torch.load(model_filename, map_location=device)
         model.load_state_dict(state['model_state_dict'])
-        print(f"Loaded model weights from: {model_filename}\n\n")
+        print(f"Loaded model weights from: {model_filename}")
         
         # Run the test and print BLEU score
         print(f"Testing model: {config['model_basename']}")
+        metrics = test_model(model, test_ds, tokenizer_src, tokenizer_tgt, config['seq_len'], device)
 
-        test_model(model, test_ds, tokenizer_src, tokenizer_tgt, config['seq_len'], device)
+         # Store results
+        results.append({
+            'num_heads': config['num_heads'],
+            'd_model': config['d_model'],
+            'num_blocks': config['num_blocks'],
+            'd_ff': config['d_ff'],
+            'BLEU': metrics['BLEU'],
+            'METEOR': metrics['METEOR'],
+            'CHRF': metrics['CHRF'],
+            'CER': metrics['CER'],
+            'WER': metrics['WER'],
+        })
 
     except FileNotFoundError:
         print(f"Model weights file not found: {model_filename}. Skipping this configuration.")
@@ -125,11 +152,20 @@ def hyperparam_test(config):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
+    results = []
 
-    for h in [1,2,4,8]:
-        config = get_new_config(config, d_model=256, num_blocks=6, num_heads=h, d_ff=1024, batch_size=16)
-        hyperparam_test(config)
+    # [1, 2, 4, 8], [1, 3, 6], [128, 256, 512]
+    for num_heads, num_blocks, d_model in product([1, 2, 4, 8], [1, 3, 6], [128, 256, 512]):
+        d_ff = 2048 if d_model == 512 else 1024
+        new_config = get_new_config(config, d_model=d_model, num_blocks=num_blocks, num_heads=num_heads, d_ff=d_ff, batch_size=16)
+        hyperparam_test(new_config, results)
 
-        config = get_new_config(config, d_model=512, num_blocks=6, num_heads=h, d_ff=2048, batch_size=16)
-        hyperparam_test(config)
+    # Save results to CSV
+    results_file = 'hyperparameter_results.csv'
+    keys = results[0].keys() if results else []
+    with open(results_file, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(results)
 
+    print(f"Results saved to {results_file}")
