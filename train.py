@@ -295,25 +295,10 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
     model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'], N=config['num_blocks'], h=config['num_heads'], d_ff=config['d_ff'])
     return model
 
-# # Learning rate scheduler function (from previous explanation)
-# def lr_schedule(step, d_model=512, warmup_steps=4000):
-#     scale = d_model ** -0.5
-#     step = max(step, 1)  # Prevent division by zero
-#     return scale * min(step ** -0.5, step * warmup_steps ** -1.5)
-
 def train_model(config):
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
     print("Using device:", device)
-    # if (device == 'cuda'):
-    #     print(f"Device name: {torch.cuda.get_device_name(device.index)}")
-    #     print(f"Device memory: {torch.cuda.get_device_properties(device.index).total_memory / 1024 ** 3} GB")
-    # elif (device == 'mps'):
-    #     print(f"Device name: <mps>")
-    # else:
-    #     print("NOTE: If you have a GPU, consider using it for training.")
-    #     print("      On a Windows machine with NVidia GPU, check this video: https://www.youtube.com/watch?v=GMSjDTU8Zlc")
-    #     print("      On a Mac machine, run: pip3 install --pre torch torchvision torchaudio torchtext --index-url https://download.pytorch.org/whl/nightly/cpu")
     device = torch.device(device)
 
     # Make sure the weights folder exists
@@ -327,7 +312,8 @@ def train_model(config):
     num_blocks = config['num_blocks']
     dff = config['d_ff']
     batch_size = config['batch_size']
-    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff_{batch_size}b"
+    lr = config['lr']
+    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff_{batch_size}b_{lr}lr"
     writer = SummaryWriter(experiment_name)
 
     # optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
@@ -340,8 +326,7 @@ def train_model(config):
 
     # Attach the learning rate scheduler
     # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda step: lr_schedule(step))
-
-                                  
+                   
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
     global_step = 0
@@ -435,3 +420,4 @@ if __name__ == '__main__':
 
     for bs in [8,16,24]:
         new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=bs, lr=1e-4)
+        train_model(new_config)
