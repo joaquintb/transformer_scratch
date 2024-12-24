@@ -10,6 +10,8 @@ def get_config():
         "num_blocks": 6,
         "num_heads":8,
         "d_ff": 2048,
+        "seed":7,
+        "test_size": 1000,
         "datasource": "Helsinki-NLP/opus_tedtalks",
         "lang_src": "en",
         "lang_tgt": "hr",

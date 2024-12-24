@@ -25,10 +25,10 @@ def get_test_ds(config):
     ds_raw = load_dataset(config['datasource'], split='train')
 
     # Shuffle the dataset with seed for reproducibility
-    ds_shuffled = ds_raw.shuffle(seed=7) 
+    ds_shuffled = ds_raw.shuffle(seed=config['seed']) 
 
-    # Randomly select 100 indices from the first 1000 entries
-    random_indices = random.sample(list(range(1000)), 100)
+    # Randomly select 100 indices from the first test_size entries
+    random_indices = random.sample(list(range(config['test_size'])), 100)
 
     # Select those entries from the dataset
     test_ds_raw = ds_shuffled.select(random_indices)

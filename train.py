@@ -248,10 +248,10 @@ def get_train_ds(config, get_seq_len: bool):
     # Calculate the number of entries to keep
     num_entries = len(ds_raw)   
 
-    ds_shuffled = ds_raw.shuffle(seed=7)
+    ds_shuffled = ds_raw.shuffle(seed=config['seed'])
 
-    # Remove the first 1000 entries (reserved for testing)
-    ds_raw = ds_shuffled.select(range(1000, len(ds_shuffled)))  # Keep all but the first 1000
+    # Remove the first test_size entries reserved for testing
+    ds_raw = ds_shuffled.select(range(config['test_size'], len(ds_shuffled)))
 
     # Build tokenizers before filtering the dataset
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
