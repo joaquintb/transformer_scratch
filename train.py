@@ -20,6 +20,8 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from torch.utils.tensorboard import SummaryWriter
 
 import re, random
+import evaluate
+from sacrebleu.metrics import CHRF
 
 def remove_punctuation(text):
     return re.sub(r'[^\w\s]', '', text)  # Removes all punctuation except words and spaces
@@ -185,25 +187,41 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
                 break
     
     if writer:
-        # Compute the char error rate 
+        # Compute CHRF score
+        chrf = CHRF(word_order=2)  # Includes up to bigram character order
+        score = chrf.corpus_score(predicted, [expected])
+        chrf_score = round(score.score, 4)
+        writer.add_scalar('validation CHRF', chrf_score, global_step)
+
+        # Compute BLEU score
+        bleu_score = round(manual_bleu_aggregation(expected, predicted), 4)
+        writer.add_scalar('validation BLEU', bleu_score, global_step)
+
+        # Compute METEOR score
+        metric = evaluate.load('meteor')
+        results = metric.compute(predictions=predicted, references=expected)
+        meteor_score = round(results['meteor'], 4)
+        writer.add_scalar('validation METEOR', meteor_score, global_step)
+
+        # Compute Char Error Rate (CER)
         metric = CharErrorRate()
-        cer = metric(predicted, expected)
-        writer.add_scalar('validation cer', cer, global_step)
-        writer.flush()
+        cer = round(metric(predicted, expected).item(), 4)
+        writer.add_scalar('validation CER', cer, global_step)
 
-        # Compute the word error rate
+        # Compute Word Error Rate (WER)
         metric = WordErrorRate()
-        wer = metric(predicted, expected)
-        writer.add_scalar('validation wer', wer, global_step)
+        wer = round(metric(predicted, expected).item(), 4)
+        writer.add_scalar('validation WER', wer, global_step)
+
+        # Flush all scalars
         writer.flush()
 
-        # Compute the BLEU metric
-        # Calculate and print the manual aggregate BLEU score
-        bleu_batch_score = manual_bleu_aggregation(expected, predicted)
-        writer.add_scalar('validation BLEU', bleu_batch_score, global_step)
-        writer.flush()
-
-        print(f"Manual Aggregate BLEU Score: {bleu_batch_score}")
+        # Print results
+        print(f"CHRF Score: {chrf_score}")
+        print(f"BLEU Score: {bleu_score}")
+        print(f"METEOR Score: {meteor_score}")
+        print(f"CER: {cer}")
+        print(f"WER: {wer}")
         print_msg('*'*console_width)
         print('\n\n')
 
