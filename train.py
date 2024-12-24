@@ -1,6 +1,6 @@
 from model import build_transformer
 from dataset import BilingualDataset, causal_mask
-from config import get_config, get_weights_file_path, latest_weights_file_path
+from config import get_config, get_weights_file_path, latest_weights_file_path, get_new_config
 
 import torchtext.datasets as datasets
 import torch
@@ -429,32 +429,9 @@ def train_model(config):
         # Update prev_model_filename to the current model file
         prev_model_filename = model_filename
 
-def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size):
-    new_config = config.copy()
-    new_config['d_model'] = d_model
-    new_config['num_blocks'] = num_blocks
-    new_config['num_heads'] = num_heads
-    new_config['d_ff'] = d_ff
-    new_config['batch_size'] = batch_size
-    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b"
-
-    return new_config
-
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    # trained_models/t_model_1h_128d_3N_1024dff_16b_epoch14.pt
-    for N in [1,6]:
-        # Testing different numbers of heads with a constant d_model
-        config1 = get_new_config(config, d_model=128, num_blocks=N, num_heads=1, d_ff=1024, batch_size=16)
-        train_model(config1)
-
-        config2 = get_new_config(config, d_model=128, num_blocks=N, num_heads=2, d_ff=1024, batch_size=16)
-        train_model(config2)
-
-        config3 = get_new_config(config, d_model=128, num_blocks=N, num_heads=4, d_ff=1024, batch_size=16)
-        train_model(config3)
-
-        config4 = get_new_config(config, d_model=128, num_blocks=N, num_heads=8, d_ff=1024, batch_size=16)
-        train_model(config4)
+    for bs in [8,16,24]:
+        new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=bs, lr=1e-4)
