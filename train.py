@@ -313,7 +313,9 @@ def train_model(config):
     dff = config['d_ff']
     batch_size = config['batch_size']
     lr = config['lr']
-    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff_{batch_size}b_{lr}lr"
+    clipping = config['clipping']
+    clip_str = 'clip' if clipping else 'noclip'
+    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff_{batch_size}b_{lr}lr_{clip_str}"
     writer = SummaryWriter(experiment_name)
 
     # optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
@@ -376,6 +378,9 @@ def train_model(config):
             # Backpropagate the loss
             loss.backward()
 
+            if config['clipping']:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
             # Update the weights
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
@@ -397,7 +402,6 @@ def train_model(config):
             device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
         )
 
-
         # Remove the previous model checkpoint if it exists
         if prev_model_filename is not None and os.path.exists(prev_model_filename):
             os.remove(prev_model_filename)
@@ -418,6 +422,9 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    for bs in [8,16,24]:
-        new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=bs, lr=1e-4)
-        train_model(new_config)
+    for lr in [1e-4,5e-5, 1e-5]:
+        for clip in [False, True]:
+            if lr == 1e-4 and not clip:
+                continue
+            new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=16, lr=lr, clipping=clip)
+            train_model(new_config)

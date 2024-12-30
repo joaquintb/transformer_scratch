@@ -12,6 +12,7 @@ def get_config():
         "d_ff": 2048,
         "seed":7,
         "test_size": 1000,
+        "clipping": False,
         "datasource": "Helsinki-NLP/opus_tedtalks",
         "lang_src": "en",
         "lang_tgt": "hr",
@@ -22,7 +23,7 @@ def get_config():
         "experiment_name": "experiments/tmodel"
     }
 
-def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size, lr):
+def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size, lr, clipping):
     new_config = config.copy()
     new_config['d_model'] = d_model
     new_config['num_blocks'] = num_blocks
@@ -30,7 +31,9 @@ def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size, lr)
     new_config['d_ff'] = d_ff
     new_config['batch_size'] = batch_size
     new_config['lr'] = lr
-    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b_{new_config['lr']}lr"
+    new_config['clipping'] = clipping
+    clip_str = "clip" if clipping else "noclip"
+    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b_{new_config['lr']}lr_{clip_str}"
 
     return new_config
 

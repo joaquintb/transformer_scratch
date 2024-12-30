@@ -1,5 +1,4 @@
-
-from config import get_config, get_weights_file_path, latest_weights_file_path
+from config import get_config, get_weights_file_path, get_new_config
 import warnings
 from train import get_or_build_tokenizer, manual_bleu_aggregation, greedy_decode, get_model
 from datasets import load_dataset
@@ -37,17 +36,6 @@ def get_test_ds(config):
     test_dataloader = DataLoader(test_ds, batch_size=1, shuffle=False) # shuffle=False for consistent order in testing
      
     return test_dataloader, tokenizer_src, tokenizer_tgt
-
-def get_new_config(config, d_model, num_blocks, num_heads, d_ff, batch_size):
-    new_config = config.copy()
-    new_config['d_model'] = d_model
-    new_config['num_blocks'] = num_blocks
-    new_config['num_heads'] = num_heads
-    new_config['d_ff'] = d_ff
-    new_config['batch_size'] = batch_size
-    new_config['model_basename'] = f"t_model_{new_config['num_heads']}h_{new_config['d_model']}d_{new_config['num_blocks']}N_{new_config['d_ff']}dff_{new_config['batch_size']}b"
-
-    return new_config
 
 def test_model(model, test_ds, tokenizer_src, tokenizer_tgt, max_len, device, num_examples=100):
     model.eval()
@@ -139,6 +127,8 @@ def hyperparam_test(config, results):
             'd_model': config['d_model'],
             'num_blocks': config['num_blocks'],
             'd_ff': config['d_ff'],
+            'batch_size': config['batch_size'],  
+            'learning_rate': config['lr'], 
             'BLEU': metrics['BLEU'],
             'METEOR': metrics['METEOR'],
             'CHRF': metrics['CHRF'],
@@ -154,14 +144,18 @@ if __name__ == '__main__':
     config = get_config()
     results = []
 
-    # [1, 2, 4, 8], [1, 3, 6], [128, 256, 512]
-    for num_heads, num_blocks, d_model in product([1, 2, 4, 8], [1, 3, 6], [128, 256, 512]):
-        d_ff = 2048 if d_model == 512 else 1024
-        new_config = get_new_config(config, d_model=d_model, num_blocks=num_blocks, num_heads=num_heads, d_ff=d_ff, batch_size=16)
+    for bs in [8,16,24]:
+        new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=bs, lr=1e-4)
         hyperparam_test(new_config, results)
 
+    # # [1, 2, 4, 8], [1, 3, 6], [128, 256, 512]
+    # for num_heads, num_blocks, d_model in product([1, 2, 4, 8], [1, 3, 6], [128, 256, 512]):
+    #     d_ff = 2048 if d_model == 512 else 1024
+    #     new_config = get_new_config(config, d_model=d_model, num_blocks=num_blocks, num_heads=num_heads, d_ff=d_ff, batch_size=16)
+    #     hyperparam_test(new_config, results)
+
     # Save results to CSV
-    results_file = 'hyperparameter_results.csv'
+    results_file = 'hyperparameter_results_bs.csv'
     keys = results[0].keys() if results else []
     with open(results_file, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=keys)
