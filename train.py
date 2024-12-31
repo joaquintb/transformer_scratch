@@ -23,6 +23,8 @@ import re, random
 import evaluate
 from sacrebleu.metrics import CHRF
 
+from torch.optim.lr_scheduler import MultiStepLR
+
 def remove_punctuation(text):
     return re.sub(r'[^\w\s]', '', text)  # Removes all punctuation except words and spaces
 
@@ -295,9 +297,6 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
     model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'], N=config['num_blocks'], h=config['num_heads'], d_ff=config['d_ff'])
     return model
 
-def lr_schedule(step_num, d_model, warmup_steps=4000):
-    return d_model ** -0.5 * min(step_num ** -0.5, step_num * warmup_steps ** -1.5)
-
 def train_model(config):
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
@@ -322,15 +321,12 @@ def train_model(config):
 
     optimizer = torch.optim.Adam(
         model.parameters(), 
-        lr=config['lr'],  # Initial learning rate (scaled by the schedule)
+        lr=config['lr'], 
         betas=(0.9, 0.98),  # (beta1, beta2)
         eps=1e-9  # epsilon
     )
 
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer, 
-        lr_lambda=lambda step: lr_schedule(step, d_model=config['d_model'], warmup_steps=4000)
-    )
+    scheduler = MultiStepLR(optimizer, milestones=[8, 12], gamma=0.5)
                    
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
