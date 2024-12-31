@@ -295,6 +295,9 @@ def get_model(config, vocab_src_len, vocab_tgt_len):
     model = build_transformer(vocab_src_len, vocab_tgt_len, config["seq_len"], config['seq_len'], d_model=config['d_model'], N=config['num_blocks'], h=config['num_heads'], d_ff=config['d_ff'])
     return model
 
+def lr_schedule(step_num, d_model, warmup_steps=4000):
+    return d_model ** -0.5 * min(step_num ** -0.5, step_num * warmup_steps ** -1.5)
+
 def train_model(config):
     # Define the device
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps or torch.backends.mps.is_available() else "cpu"
@@ -313,21 +316,21 @@ def train_model(config):
     dff = config['d_ff']
     batch_size = config['batch_size']
     lr = config['lr']
-    clipping = config['clipping']
-    clip_str = 'clip' if clipping else 'noclip'
-    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff_{batch_size}b_{lr}lr_{clip_str}"
+    experiment_name = f"runs/experiment_{num_heads}h_{d_model}d_{num_blocks}N_{dff}dff_{batch_size}b_{lr}lr_sch"
     writer = SummaryWriter(experiment_name)
 
-    # optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
+
     optimizer = torch.optim.Adam(
         model.parameters(), 
         lr=config['lr'],  # Initial learning rate (scaled by the schedule)
-        #betas=(0.9, 0.98),  # (beta1, beta2)
+        betas=(0.9, 0.98),  # (beta1, beta2)
         eps=1e-9  # epsilon
     )
 
-    # Attach the learning rate scheduler
-    # scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda step: lr_schedule(step))
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, 
+        lr_lambda=lambda step: lr_schedule(step, d_model=config['d_model'], warmup_steps=4000)
+    )
                    
     # If the user specified a model to preload before training, load it
     initial_epoch = 0
@@ -378,11 +381,9 @@ def train_model(config):
             # Backpropagate the loss
             loss.backward()
 
-            if config['clipping']:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-
             # Update the weights
             optimizer.step()
+            scheduler.step()  # Update learning rate
             optimizer.zero_grad(set_to_none=True)
 
             # scheduler.step()  # Update learning rate based on schedule
@@ -422,9 +423,5 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     config = get_config()
 
-    for lr in [1e-4,5e-5, 1e-5]:
-        for clip in [False, True]:
-            if lr == 1e-4 and not clip:
-                continue
-            new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=16, lr=lr, clipping=clip)
-            train_model(new_config)
+    new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=16, lr=1e-4)
+    train_model(new_config)

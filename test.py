@@ -129,6 +129,7 @@ def hyperparam_test(config, results):
             'd_ff': config['d_ff'],
             'batch_size': config['batch_size'],  
             'learning_rate': config['lr'], 
+            'clipping': config['clipping'],
             'BLEU': metrics['BLEU'],
             'METEOR': metrics['METEOR'],
             'CHRF': metrics['CHRF'],
@@ -144,15 +145,10 @@ if __name__ == '__main__':
     config = get_config()
     results = []
 
-    for bs in [8,16,24]:
-        new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=bs, lr=1e-4)
-        hyperparam_test(new_config, results)
-
-    # # [1, 2, 4, 8], [1, 3, 6], [128, 256, 512]
-    # for num_heads, num_blocks, d_model in product([1, 2, 4, 8], [1, 3, 6], [128, 256, 512]):
-    #     d_ff = 2048 if d_model == 512 else 1024
-    #     new_config = get_new_config(config, d_model=d_model, num_blocks=num_blocks, num_heads=num_heads, d_ff=d_ff, batch_size=16)
-    #     hyperparam_test(new_config, results)
+    for lr in [1e-4,5e-5, 1e-5]:
+        for clip in [False, True]:
+            new_config = get_new_config(config, d_model=256, num_blocks=3, num_heads=4, d_ff=1024, batch_size=16, lr=lr, clipping=clip)
+            hyperparam_test(new_config)
 
     # Save results to CSV
     results_file = 'hyperparameter_results_bs.csv'
