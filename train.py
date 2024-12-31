@@ -379,10 +379,7 @@ def train_model(config):
 
             # Update the weights
             optimizer.step()
-            scheduler.step()  # Update learning rate
             optimizer.zero_grad(set_to_none=True)
-
-            # scheduler.step()  # Update learning rate based on schedule
 
             # Increment the global step counter
             global_step += 1
@@ -392,6 +389,8 @@ def train_model(config):
                     model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'],
                     device, lambda msg: batch_iterator.write(msg), global_step, epoch, writer
                 )
+
+        scheduler.step()
 
         # Run validation at the end of each epoch as well
         run_validation(
